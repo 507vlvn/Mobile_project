@@ -200,6 +200,14 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
     _c.placePlayer(idx);
   }
 
+  ScoreReporter _getScoreReporter(BuildContext context) {
+    try {
+      return Provider.of<ScoreReporter>(context, listen: false);
+    } catch (_) {
+      return LocalScoreReporter();
+    }
+  }
+
   Future<void> _onFinished() async {
     final result = _c.result;
     if (result == CaroResult.playerWin) HapticFeedback.heavyImpact();
@@ -209,7 +217,7 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
     if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    final outcome = await context.read<ScoreReporter>().submit(_c.toRecord());
+    final outcome = await _getScoreReporter(context).submit(_c.toRecord());
     if (!mounted) return;
 
     final action = await showResultSheet(
@@ -305,7 +313,7 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final nav = Navigator.of(context);
-        final reporter = context.read<ScoreReporter>();
+        final reporter = _getScoreReporter(context);
         if (challenge != null) {
           final ok = await confirmExit(
             context,
