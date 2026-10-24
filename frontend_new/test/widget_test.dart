@@ -11,6 +11,7 @@ import 'package:frontend_new/core/network/token_storage.dart';
 import 'package:frontend_new/core/theme/theme_controller.dart';
 import 'package:frontend_new/main.dart';
 import 'package:frontend_new/soduku/ui/sudoku_home_screen.dart';
+import 'package:frontend_new/XepHinh/xep_hinh_screen.dart';
 
 const _me = AppUser(userId: 7, username: 'binh', email: 'binh@example.com', fullName: 'Thái Bình');
 const _an = UserSummary(userId: 9, username: 'an', fullName: 'Nguyễn An');
@@ -213,7 +214,7 @@ void main() {
     await _pumpApp(tester);
 
     expect(find.text('Chọn trò chơi'), findsOneWidget);
-    for (final name in ['Rubik 3D', 'Sudoku', 'Xếp hình', 'Caro']) {
+    for (final name in ['Rubik 3D', 'Sudoku', 'Xếp hình & PhaseShift', 'Caro']) {
       expect(find.text(name), findsOneWidget);
     }
 
@@ -221,6 +222,14 @@ void main() {
     await tester.tap(find.text('Sudoku'));
     await tester.pumpAndSettle();
     expect(find.byType(SudokuHomeScreen), findsOneWidget);
+  });
+
+  testWidgets('Home mở được Xếp hình', (WidgetTester tester) async {
+    await _pumpApp(tester);
+
+    await tester.tap(find.text('Xếp hình & PhaseShift'));
+    await tester.pumpAndSettle();
+    expect(find.byType(XepHinhScreen), findsOneWidget);
   });
 
   testWidgets('Thanh điều hướng dưới chuyển được tab', (WidgetTester tester) async {
