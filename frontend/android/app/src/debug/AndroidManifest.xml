@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.rubikSolver">
+    <!-- Flutter needs it to communicate with the running application
+         to allow setting breakpoints, to provide hot reload, etc.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Cho phép HTTP thường để gọi API dev (10.0.2.2 / IP LAN). Chỉ bản debug. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

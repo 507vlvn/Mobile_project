@@ -2,3 +2,24 @@
 TASKS.md
 TASKS_V2.md
 backend/.vs/
+
+# .NET build output
+backend/**/bin/
+backend/**/obj/
+
+# Flutter / Dart
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+**/*.iml
+**/.idea/
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/.env
+.gemini/settings.json
