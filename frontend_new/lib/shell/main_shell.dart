@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_tokens.dart';
 import '../hub/hub_screen.dart';
+import '../profile/profile_screen.dart';
 
 /// Khung chính với thanh điều hướng dưới (5 mục, có icon + chữ):
 /// Trò chơi · Đối kháng · Xếp hạng · Bạn bè · Hồ sơ.
@@ -18,13 +19,13 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    // Chưa có chức năng: các tab ngoài Trò chơi tạm hiện màn chờ.
+    // Các tab chưa có chức năng tạm hiện màn chờ.
     const pages = <Widget>[
       HubScreen(),
       _ComingSoon(title: 'Đối kháng', icon: Icons.sports_mma_rounded),
       _ComingSoon(title: 'Xếp hạng', icon: Icons.leaderboard_rounded),
       _ComingSoon(title: 'Bạn bè', icon: Icons.people_rounded),
-      _ComingSoon(title: 'Hồ sơ', icon: Icons.person_rounded),
+      ProfileScreen(),
     ];
 
     return Scaffold(
