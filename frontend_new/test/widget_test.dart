@@ -1,30 +1,31 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:frontend_new/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('Home hiển thị danh sách trò chơi', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Chọn trò chơi'), findsOneWidget);
+    for (final name in ['Rubik 3D', 'Sudoku', 'Xếp hình', 'Caro']) {
+      expect(find.text(name), findsOneWidget);
+    }
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    // Chưa có chức năng: bấm vào game chỉ hiện thông báo.
+    await tester.tap(find.text('Sudoku'));
     await tester.pump();
+    expect(find.text('Sudoku đang được phát triển, sắp ra mắt!'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Thanh điều hướng dưới chuyển được tab', (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+
+    for (final label in ['Trò chơi', 'Đối kháng', 'Xếp hạng', 'Bạn bè', 'Hồ sơ']) {
+      expect(find.text(label), findsOneWidget);
+    }
+
+    await tester.tap(find.text('Hồ sơ'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đang được phát triển'), findsOneWidget);
   });
 }
