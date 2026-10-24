@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../caro/caro_screen.dart';
+import '../soduku/ui/sudoku_home_screen.dart';
 import '../core/theme/app_tokens.dart';
 
 /// Thông tin một game hiển thị trên Hub.
@@ -119,6 +120,10 @@ class _GameCard extends StatelessWidget {
           if (entry.code == 'CARO') {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CaroScreen()),
+            );
+          } else if (entry.code == 'SUDOKU') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SudokuHomeScreen()),
             );
           } else {
             ScaffoldMessenger.of(context)

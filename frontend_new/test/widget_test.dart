@@ -10,6 +10,7 @@ import 'package:frontend_new/core/network/models.dart';
 import 'package:frontend_new/core/network/token_storage.dart';
 import 'package:frontend_new/core/theme/theme_controller.dart';
 import 'package:frontend_new/main.dart';
+import 'package:frontend_new/soduku/ui/sudoku_home_screen.dart';
 
 const _me = AppUser(userId: 7, username: 'binh', email: 'binh@example.com', fullName: 'Thái Bình');
 const _an = UserSummary(userId: 9, username: 'an', fullName: 'Nguyễn An');
@@ -208,7 +209,7 @@ Finder _inBody(String text) => find.descendant(
     of: find.byType(IndexedStack).first, matching: find.text(text));
 
 void main() {
-  testWidgets('Home hiển thị danh sách trò chơi', (WidgetTester tester) async {
+  testWidgets('Home hiển thị danh sách trò chơi và mở Sudoku', (WidgetTester tester) async {
     await _pumpApp(tester);
 
     expect(find.text('Chọn trò chơi'), findsOneWidget);
@@ -216,10 +217,10 @@ void main() {
       expect(find.text(name), findsOneWidget);
     }
 
-    // Chưa có chức năng: bấm vào game chỉ hiện thông báo.
+    // Bấm vào Sudoku mở thẳng SudokuHomeScreen
     await tester.tap(find.text('Sudoku'));
-    await tester.pump();
-    expect(find.text('Sudoku đang được phát triển, sắp ra mắt!'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.byType(SudokuHomeScreen), findsOneWidget);
   });
 
   testWidgets('Thanh điều hướng dưới chuyển được tab', (WidgetTester tester) async {

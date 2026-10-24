@@ -46,7 +46,6 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: context.watch<ThemeController>().mode,
-
       home: const MainShell(),
     );
   }
