@@ -4,7 +4,14 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0ecc4a13-e951-4ed1-8060-13764e007aec" name="Changes" comment="" />
+    <list default="true" id="0ecc4a13-e951-4ed1-8060-13764e007aec" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/frontend_new/lib/caro/caro/caro_controller.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend_new/lib/caro/caro/caro_screen.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend_new/lib/caro/caro/logic/caro_ai.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend_new/lib/caro/caro/logic/caro_board.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend_new/lib/caro/caro/widgets/caro_board_view.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -14,8 +21,25 @@
     <option name="formatViaClangd" value="false" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "phuchoangvo210405"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/507vlvn/Mobile_project.git",
+    "accountId": "88e7b7ac-b2c8-4249-93a8-55a048b3a012"
+  }
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8,
   &quot;fromUser&quot;: false
@@ -36,12 +60,18 @@
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
     "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "dev__caro",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "E:/DoAn_Moblie",
+    "last_opened_file_path": "C:/Users/Admin/StudioProjects/Mobile_project",
+    "settings.editor.selected.configurable": "dart.settings",
     "show.migrate.to.gradle.popup": "false"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\Admin\StudioProjects\Mobile_project\frontend_new\lib\caro" />
+    </key>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="0ecc4a13-e951-4ed1-8060-13764e007aec" name="Changes" comment="" />
