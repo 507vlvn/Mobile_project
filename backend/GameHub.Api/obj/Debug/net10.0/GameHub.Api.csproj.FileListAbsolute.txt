@@ -259,3 +259,4 @@ E:\DoAn_Moblie\backend\GameHub.Api\bin\Debug\net10.0\ru\Microsoft.CodeAnalysis.W
 E:\DoAn_Moblie\backend\GameHub.Api\bin\Debug\net10.0\tr\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
 E:\DoAn_Moblie\backend\GameHub.Api\bin\Debug\net10.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
 E:\DoAn_Moblie\backend\GameHub.Api\bin\Debug\net10.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+E:\DoAn_Moblie\backend\GameHub.Api\obj\Debug\net10.0\GameHub.Api.sourcelink.json

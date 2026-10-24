@@ -343,3 +343,4 @@ E:\DoAn_Moblie\backend\GameHub.Tests\obj\Debug\net10.0\refint\GameHub.Tests.dll
 E:\DoAn_Moblie\backend\GameHub.Tests\obj\Debug\net10.0\GameHub.Tests.pdb
 E:\DoAn_Moblie\backend\GameHub.Tests\obj\Debug\net10.0\GameHub.Tests.genruntimeconfig.cache
 E:\DoAn_Moblie\backend\GameHub.Tests\obj\Debug\net10.0\ref\GameHub.Tests.dll
+E:\DoAn_Moblie\backend\GameHub.Tests\obj\Debug\net10.0\GameHub.Tests.sourcelink.json
