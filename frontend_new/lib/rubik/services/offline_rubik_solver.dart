@@ -1,6 +1,8 @@
 import 'dart:isolate';
 import 'package:cuber/cuber.dart';
 
+import 'kociemba_short_solver.dart';
+
 /// Kết quả giải khối Rubik
 class SolveResult {
   final bool success;
@@ -18,6 +20,9 @@ class SolveResult {
 
 /// Dịch vụ giải Rubik độc lập 100% Offline chạy trên Dart Isolate
 class OfflineRubikSolver {
+  /// Thời gian tối đa dành cho việc rút ngắn lời giải.
+  static const searchBudget = Duration(seconds: 1);
+
   /// Giải từ cấu trúc sideColorCode của ứng dụng (top, left, front, right, back, bottom)
   static Future<SolveResult> solveFromSideColors(
     Map<String, String> sideColorCode,
@@ -109,11 +114,19 @@ class OfflineRubikSolver {
         return [];
       }
 
-      final solution = kociemba.solve(
-        cube,
-        maxDepth: 24,
-        timeout: const Duration(seconds: 4),
-      );
+      // Tìm lời giải ngắn nhất có thể trong ~1 giây (thường 19–21 bước). Lời giải
+      // đầu tiên có sau vài chục ms nên gần như không bao giờ trả về null; nếu có
+      // thì giải lại bằng bản gốc của cuber cho chắc.
+      final solution = const KociembaShortSolver().solve(
+            cube,
+            maxDepth: 24,
+            timeout: searchBudget,
+          ) ??
+          kociemba.solve(
+            cube,
+            maxDepth: 24,
+            timeout: const Duration(seconds: 4),
+          );
 
       if (solution == null) {
         return null;
