@@ -1,5 +1,4 @@
 using GameHub.Api.model;
-using GameHub.Api.Realtime;
 using GameHub.Api.Repositories;
 using GameHub.Api.Services;
 using Microsoft.AspNetCore.Authorization;

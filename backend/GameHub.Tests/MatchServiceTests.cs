@@ -1,5 +1,5 @@
 using System.Text.Json;
-using GameHub.Api.Realtime;
+using GameHub.Api.Services;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;

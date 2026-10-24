@@ -1,8 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
-using GameHub.Api.Infrastructure;
 using GameHub.Api.model;
-using GameHub.Api.Realtime;
 using GameHub.Api.Repositories;
 using GameHub.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -145,7 +143,7 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHub<GameHub.Api.Realtime.GameHub>("/hubs/game", o =>
+app.MapHub<GameHub.Api.Services.GameHub>("/hubs/game", o =>
     o.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets
                    | Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling);
 

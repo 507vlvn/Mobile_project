@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using GameHub.Api.Infrastructure;
+using GameHub.Api.Services;
 
 namespace GameHub.Api.Controllers;
 
