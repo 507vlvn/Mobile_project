@@ -48,25 +48,30 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
     final completed = _learningManager.completedCount;
     final total = SudokuLearningManager.totalLevels;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, size: 24),
-          color: const Color(0xFF1E293B),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Toán Chéo (CrossMath)',
           style: TextStyle(
-            color: Color(0xFF1E293B),
+            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       ),
       body: SafeArea(
         child: Column(
@@ -74,24 +79,24 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
           children: [
             // Thông số tiến trình (ví dụ: 2/30)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '$completed/$total',
-                    style: const TextStyle(
-                      fontSize: 16,
+                    '$completed/$total Đã hoàn thành',
+                    style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF475569),
+                      color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
                     ),
                   ),
                   Text(
                     'Độ khó tăng dần từ 1 đến $total',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF94A3B8),
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -114,7 +119,7 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
                 itemCount: levels.length,
                 itemBuilder: (context, index) {
                   final info = levels[index];
-                  return _buildLevelCard(info);
+                  return _buildLevelCard(info, isDark);
                 },
               ),
             ),
@@ -124,7 +129,7 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
     );
   }
 
-  Widget _buildLevelCard(LearningLevelInfo info) {
+  Widget _buildLevelCard(LearningLevelInfo info, bool isDark) {
     final isCompleted = info.isCompleted;
     final isUnlocked = info.isUnlocked;
     final isCurrent = isUnlocked && !isCompleted;
@@ -134,7 +139,7 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
       return Material(
         color: const Color(0xFF2563EB),
         borderRadius: BorderRadius.circular(14),
-        elevation: 1,
+        elevation: 2,
         child: InkWell(
           onTap: () => _playLevel(info.level),
           borderRadius: BorderRadius.circular(14),
@@ -164,37 +169,41 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
       );
     }
 
-    // 2. Level đang mở khóa (hiện tại): Nền trắng, viền xanh biển đậm, --:--
+    // 2. Level đang mở khóa (hiện tại)
     if (isCurrent) {
       return Material(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(14),
+        elevation: 1,
         child: InkWell(
           onTap: () => _playLevel(info.level),
           borderRadius: BorderRadius.circular(14),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2563EB), width: 2.2),
+              border: Border.all(
+                color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB),
+                width: 2.2,
+              ),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   '${info.level}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2563EB),
+                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB),
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   '--:--',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF94A3B8),
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8),
                   ),
                 ),
               ],
@@ -204,12 +213,16 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
       );
     }
 
-    // 3. Level bị khóa: Nền xám nhạt, icon ổ khóa và số level mờ
+    // 3. Level bị khóa
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDark
+            ? const Color(0xFF1E293B).withValues(alpha: 0.5)
+            : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -217,19 +230,19 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
           Stack(
             alignment: Alignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.lock_rounded,
-                color: Color(0xFFCBD5E1),
-                size: 28,
+                color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                size: 26,
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
                 child: Text(
                   '${info.level}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF64748B),
+                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF64748B),
                   ),
                 ),
               ),
