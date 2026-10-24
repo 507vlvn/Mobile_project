@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-import 'package:flutter_test/flutter_test.dart';
-=======
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -12,9 +9,7 @@ import 'package:frontend_new/core/network/api_client.dart';
 import 'package:frontend_new/core/network/models.dart';
 import 'package:frontend_new/core/network/token_storage.dart';
 import 'package:frontend_new/core/theme/theme_controller.dart';
->>>>>>> origin/main
 import 'package:frontend_new/main.dart';
-import 'package:frontend_new/soduku/logic/sudoku_controller.dart';
 import 'package:frontend_new/soduku/ui/sudoku_home_screen.dart';
 
 const _me = AppUser(userId: 7, username: 'binh', email: 'binh@example.com', fullName: 'Thái Bình');
@@ -214,11 +209,7 @@ Finder _inBody(String text) => find.descendant(
     of: find.byType(IndexedStack).first, matching: find.text(text));
 
 void main() {
-<<<<<<< HEAD
-  testWidgets('Sudoku home screen smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
-=======
-  testWidgets('Home hiển thị danh sách trò chơi', (WidgetTester tester) async {
+  testWidgets('Home hiển thị danh sách trò chơi và mở Sudoku', (WidgetTester tester) async {
     await _pumpApp(tester);
 
     expect(find.text('Chọn trò chơi'), findsOneWidget);
@@ -226,21 +217,12 @@ void main() {
       expect(find.text(name), findsOneWidget);
     }
 
-    // Chưa có chức năng: bấm vào game chỉ hiện thông báo.
+    // Bấm vào Sudoku mở thẳng SudokuHomeScreen
     await tester.tap(find.text('Sudoku'));
->>>>>>> origin/main
-    await tester.pump();
-    expect(find.text('Sudoku đang được phát triển, sắp ra mắt!'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.byType(SudokuHomeScreen), findsOneWidget);
   });
 
-<<<<<<< HEAD
-    expect(find.byType(SudokuHomeScreen), findsOneWidget);
-    expect(find.text('Sudoku Classic'), findsOneWidget);
-    expect(find.text('Tiếp tục Trò chơi'), findsOneWidget);
-    expect(find.text('Trò chơi Mới'), findsOneWidget);
-
-    SudokuController.instance.stopTimer();
-=======
   testWidgets('Thanh điều hướng dưới chuyển được tab', (WidgetTester tester) async {
     await _pumpApp(tester);
 
@@ -404,6 +386,5 @@ void main() {
     // Rời màn chat để dừng hỏi tin định kỳ.
     await tester.pageBack();
     await tester.pumpAndSettle();
->>>>>>> origin/main
   });
 }
