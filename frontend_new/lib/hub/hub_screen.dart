@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_tokens.dart';
+import '../XepHinh/xep_hinh_screen.dart';
 
 /// Thông tin một game hiển thị trên Hub.
 class _GameEntry {
@@ -36,8 +37,8 @@ final _games = <_GameEntry>[
   ),
   _GameEntry(
     code: 'PUZZLE',
-    name: 'Xếp hình',
-    tagline: 'Trượt các ô số về đúng thứ tự',
+    name: 'Xếp hình & PhaseShift',
+    tagline: 'Xếp số trượt, ghép hình Jigsaw và phản ứng nguyên tố',
     icon: Icons.apps_rounded,
     color: Color(0xFFD97706),
   ),
@@ -114,12 +115,19 @@ class _GameCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        // Chưa có chức năng: chỉ thông báo, sẽ nối màn game ở bước sau.
-        onTap: () => ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(content: Text('${entry.name} đang được phát triển, sắp ra mắt!')),
-          ),
+        onTap: () {
+          if (entry.code == 'PUZZLE') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const XepHinhScreen()),
+            );
+          } else {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(content: Text('${entry.name} đang được phát triển, sắp ra mắt!')),
+              );
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Row(
