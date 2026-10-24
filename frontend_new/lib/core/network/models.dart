@@ -1,3 +1,4 @@
+import '../models/presence.dart';
 import '../models/rank.dart';
 
 // Các model khớp DTO của backend (camelCase), xem backend/GameHub.Api/model/Dtos.cs.
@@ -176,6 +177,238 @@ class GameStats {
     );
   }
 }
+
+// ------------------------------------------------------------ bạn bè
+
+/// `FriendDto`: {userId, username, fullName?, avatarUrl?, status: online|in_match|offline, lastSeenAt?}.
+class FriendInfo {
+  final int userId;
+  final String username;
+  final String? fullName;
+  final PresenceStatus presence;
+  final DateTime? lastSeenAt;
+
+  const FriendInfo({
+    required this.userId,
+    required this.username,
+    this.fullName,
+    this.presence = PresenceStatus.offline,
+    this.lastSeenAt,
+  });
+
+  String get displayName => _displayName(fullName, username);
+
+  UserSummary get summary =>
+      UserSummary(userId: userId, username: username, fullName: fullName);
+
+  factory FriendInfo.fromJson(Map<String, dynamic> j) => FriendInfo(
+        userId: j['userId'] as int,
+        username: j['username'] as String,
+        fullName: j['fullName'] as String?,
+        presence: PresenceStatus.parse(j['status']),
+        lastSeenAt:
+            j['lastSeenAt'] == null ? null : parseServerDate(j['lastSeenAt']),
+      );
+}
+
+/// Sắp xếp bạn bè: đang online -> đang trong trận -> offline (mới thấy gần nhất
+/// trước); cùng nhóm thì theo tên.
+List<FriendInfo> sortFriends(Iterable<FriendInfo> friends) {
+  int rank(PresenceStatus s) => switch (s) {
+        PresenceStatus.online => 0,
+        PresenceStatus.inMatch => 1,
+        PresenceStatus.offline => 2,
+      };
+  final list = friends.toList();
+  list.sort((a, b) {
+    final r = rank(a.presence).compareTo(rank(b.presence));
+    if (r != 0) return r;
+    if (a.presence == PresenceStatus.offline) {
+      final la = a.lastSeenAt;
+      final lb = b.lastSeenAt;
+      if (la != null && lb != null) {
+        final c = lb.compareTo(la);
+        if (c != 0) return c;
+      } else if (la != null) {
+        return -1;
+      } else if (lb != null) {
+        return 1;
+      }
+    }
+    return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+  });
+  return list;
+}
+
+/// `FriendRequestDto`: {requestId, userId, username, fullName?, avatarUrl?, createdAt}.
+class FriendRequestItem {
+  final int requestId;
+  final UserSummary user;
+
+  const FriendRequestItem({required this.requestId, required this.user});
+
+  String get displayName => user.displayName;
+
+  factory FriendRequestItem.fromJson(Map<String, dynamic> j) =>
+      FriendRequestItem(
+        requestId: j['requestId'] as int,
+        user: UserSummary.fromJson(j),
+      );
+}
+
+/// `FriendRequestsDto`: {incoming:[...], outgoing:[...]}.
+class FriendRequests {
+  final List<FriendRequestItem> incoming;
+  final List<FriendRequestItem> outgoing;
+
+  const FriendRequests({this.incoming = const [], this.outgoing = const []});
+
+  factory FriendRequests.fromJson(Map<String, dynamic> j) {
+    List<FriendRequestItem> list(Object? v) => [
+          for (final e in (v as List? ?? const []))
+            FriendRequestItem.fromJson((e as Map).cast<String, dynamic>()),
+        ];
+    return FriendRequests(
+        incoming: list(j['incoming']), outgoing: list(j['outgoing']));
+  }
+}
+
+/// Quan hệ của mình với một người chơi.
+enum Relationship {
+  none,
+  friends,
+  pendingOut,
+  pendingIn,
+  self;
+
+  /// `friendshipStatus` của ProfileDto: NONE | SELF | ACCEPTED | PENDING_SENT | PENDING_RECEIVED.
+  static Relationship parse(Object? v) => switch (v) {
+        'ACCEPTED' => friends,
+        'PENDING_SENT' => pendingOut,
+        'PENDING_RECEIVED' => pendingIn,
+        'SELF' => self,
+        _ => none,
+      };
+}
+
+/// `ProfileDto` của GET /users/{id}/profile.
+class PlayerProfile {
+  final UserSummary user;
+  final Relationship relationship;
+
+  /// Id lời mời đang chờ (để Chấp nhận / Từ chối), nếu có.
+  final int? requestId;
+  final PresenceStatus presence;
+  final List<GameStats> stats;
+
+  const PlayerProfile({
+    required this.user,
+    this.relationship = Relationship.none,
+    this.requestId,
+    this.presence = PresenceStatus.offline,
+    this.stats = const [],
+  });
+
+  int get userId => user.userId;
+  String get username => user.username;
+  String get displayName => user.displayName;
+
+  GameStats? statsFor(String gameCode) {
+    for (final s in stats) {
+      if (s.gameCode == gameCode) return s;
+    }
+    return null;
+  }
+
+  /// Game có rating cao nhất trong số đã đấu (null nếu chưa đấu trận nào).
+  GameStats? get best {
+    GameStats? b;
+    for (final s in stats) {
+      if (s.games == 0) continue;
+      if (b == null || s.rating > b.rating) b = s;
+    }
+    return b;
+  }
+
+  PlayerProfile withRelationship(Relationship r) => PlayerProfile(
+        user: user,
+        relationship: r,
+        requestId: requestId,
+        presence: presence,
+        stats: stats,
+      );
+
+  factory PlayerProfile.fromJson(Map<String, dynamic> j) => PlayerProfile(
+        user: UserSummary.fromJson((j['user'] as Map).cast<String, dynamic>()),
+        relationship: Relationship.parse(j['friendshipStatus']),
+        requestId: j['pendingRequestId'] as int?,
+        presence: PresenceStatus.parse(j['status']),
+        stats: [
+          for (final e in (j['stats'] as List? ?? const []))
+            GameStats.fromJson((e as Map).cast<String, dynamic>()),
+        ],
+      );
+}
+
+// ------------------------------------------------------------ tin nhắn
+
+/// `MessageDto`: {messageId, senderId, receiverId, content, isRead, sentAt}.
+class ChatMessage {
+  final int messageId;
+  final int senderId;
+  final int receiverId;
+  final String content;
+  final bool isRead;
+  final DateTime sentAt;
+
+  const ChatMessage({
+    required this.messageId,
+    required this.senderId,
+    required this.receiverId,
+    required this.content,
+    required this.isRead,
+    required this.sentAt,
+  });
+
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
+        messageId: j['messageId'] as int,
+        senderId: j['senderId'] as int,
+        receiverId: j['receiverId'] as int,
+        content: j['content'] as String,
+        isRead: (j['isRead'] as bool?) ?? false,
+        sentAt: parseServerDate(j['sentAt']),
+      );
+}
+
+/// `ConversationDto`: {userId, username, fullName?, avatarUrl?, lastMessage,
+/// lastMessageAt, lastFromMe, unreadCount}.
+class Conversation {
+  final UserSummary user;
+  final String lastMessage;
+  final DateTime lastMessageAt;
+  final bool lastFromMe;
+  final int unreadCount;
+
+  const Conversation({
+    required this.user,
+    required this.lastMessage,
+    required this.lastMessageAt,
+    required this.lastFromMe,
+    required this.unreadCount,
+  });
+
+  String get displayName => user.displayName;
+
+  factory Conversation.fromJson(Map<String, dynamic> j) => Conversation(
+        user: UserSummary.fromJson(j),
+        lastMessage: (j['lastMessage'] as String?) ?? '',
+        lastMessageAt: parseServerDate(j['lastMessageAt']),
+        lastFromMe: (j['lastFromMe'] as bool?) ?? false,
+        unreadCount: (j['unreadCount'] as int?) ?? 0,
+      );
+}
+
+// ------------------------------------------------------------ trận đấu
 
 enum MatchResult { win, lose, draw }
 

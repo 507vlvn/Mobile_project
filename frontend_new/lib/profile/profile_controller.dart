@@ -67,7 +67,7 @@ class ProfileController extends ChangeNotifier {
     try {
       _ratings = await _api.myRatings();
       try {
-        _profileStats = await _api.profileStats(myId);
+        _profileStats = (await _api.userProfile(myId)).stats;
       } on ApiException {
         // Hồ sơ chỉ bổ sung kỷ lục: bỏ qua nếu lỗi.
       }

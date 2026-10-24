@@ -29,11 +29,38 @@ abstract interface class ApiClient {
   });
   Future<AppUser> me();
   Future<AppUser> updateMe({String? fullName});
+  Future<List<UserSummary>> searchUsers(String q);
 
-  /// Thống kê từng game trong hồ sơ công khai (có kỷ lục chơi đơn).
-  Future<List<GameStats>> profileStats(int userId);
+  /// Hồ sơ công khai: quan hệ với mình + thống kê từng game (có kỷ lục chơi đơn).
+  Future<PlayerProfile> userProfile(int userId);
   Future<List<GameStats>> myRatings();
   Future<PagedResult<MatchHistoryItem>> matches({int page = 1, int pageSize = 20});
+
+  // ---- Bạn bè ----
+  Future<List<FriendInfo>> friends();
+  Future<FriendRequests> friendRequests();
+
+  /// Gửi lời mời; nếu bên kia đã mời mình thì server tự kết bạn.
+  Future<void> sendFriendRequest(int userId);
+  Future<void> acceptFriendRequest(int requestId);
+  Future<void> declineFriendRequest(int requestId);
+
+  /// Hủy kết bạn hoặc hủy lời mời đã gửi (`DELETE /friends/{userId}`).
+  Future<void> removeFriend(int userId);
+
+  // ---- Tin nhắn ----
+  Future<List<Conversation>> conversations();
+
+  /// Tin với một người, tăng dần theo id. [afterId]: tin mới hơn;
+  /// [beforeId]: tin cũ hơn; không truyền: trang mới nhất.
+  Future<List<ChatMessage>> messagesWith(
+    int userId, {
+    int? afterId,
+    int? beforeId,
+    int limit = 30,
+  });
+  Future<ChatMessage> sendMessage(int userId, String content);
+  Future<void> markRead(int userId);
 }
 
 class HttpApiClient implements ApiClient {
@@ -130,19 +157,25 @@ class HttpApiClient implements ApiClient {
         'fullName': fullName,
       })));
 
+  List<Map<String, dynamic>> _list(Object? d) => [
+        for (final e in (d as List? ?? const []))
+          (e as Map).cast<String, dynamic>(),
+      ];
+
   @override
-  Future<List<GameStats>> profileStats(int userId) async {
-    final d = _map(await _send('GET', '/users/$userId/profile'));
-    return [
-      for (final e in (d['stats'] as List? ?? const []))
-        GameStats.fromJson((e as Map).cast<String, dynamic>()),
-    ];
-  }
+  Future<List<UserSummary>> searchUsers(String q) async => [
+        for (final e in _list(await _send('GET', '/users/search', query: {'q': q})))
+          UserSummary.fromJson(e),
+      ];
+
+  @override
+  Future<PlayerProfile> userProfile(int userId) async =>
+      PlayerProfile.fromJson(_map(await _send('GET', '/users/$userId/profile')));
 
   @override
   Future<List<GameStats>> myRatings() async => [
-        for (final e in (await _send('GET', '/ratings/me') as List? ?? const []))
-          GameStats.fromJson((e as Map).cast<String, dynamic>()),
+        for (final e in _list(await _send('GET', '/ratings/me')))
+          GameStats.fromJson(e),
       ];
 
   @override
@@ -152,4 +185,65 @@ class HttpApiClient implements ApiClient {
             query: {'page': page, 'pageSize': pageSize})),
         MatchHistoryItem.fromJson,
       );
+
+  @override
+  Future<List<FriendInfo>> friends() async => [
+        for (final e in _list(await _send('GET', '/friends'))) FriendInfo.fromJson(e),
+      ];
+
+  @override
+  Future<FriendRequests> friendRequests() async =>
+      FriendRequests.fromJson(_map(await _send('GET', '/friends/requests')));
+
+  @override
+  Future<void> sendFriendRequest(int userId) async {
+    await _send('POST', '/friends/requests', body: {'userId': userId});
+  }
+
+  @override
+  Future<void> acceptFriendRequest(int requestId) async {
+    await _send('POST', '/friends/requests/$requestId/accept');
+  }
+
+  @override
+  Future<void> declineFriendRequest(int requestId) async {
+    await _send('POST', '/friends/requests/$requestId/decline');
+  }
+
+  @override
+  Future<void> removeFriend(int userId) async {
+    await _send('DELETE', '/friends/$userId');
+  }
+
+  @override
+  Future<List<Conversation>> conversations() async => [
+        for (final e in _list(await _send('GET', '/messages/conversations')))
+          Conversation.fromJson(e),
+      ];
+
+  @override
+  Future<List<ChatMessage>> messagesWith(
+    int userId, {
+    int? afterId,
+    int? beforeId,
+    int limit = 30,
+  }) async =>
+      [
+        for (final e in _list(await _send('GET', '/messages/with/$userId', query: {
+          'limit': limit,
+          'afterId': ?afterId,
+          'beforeId': ?beforeId,
+        })))
+          ChatMessage.fromJson(e),
+      ];
+
+  @override
+  Future<ChatMessage> sendMessage(int userId, String content) async =>
+      ChatMessage.fromJson(_map(await _send('POST', '/messages/with/$userId',
+          body: {'content': content})));
+
+  @override
+  Future<void> markRead(int userId) async {
+    await _send('POST', '/messages/with/$userId/read');
+  }
 }

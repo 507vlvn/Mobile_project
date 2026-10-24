@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_tokens.dart';
+import '../friends/friends_screen.dart';
 import '../hub/hub_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -15,24 +16,32 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  static const _friendsIndex = 3;
+
   int _index = 0;
+  bool _friendsVisited = false; // tab Bạn bè chỉ dựng (và gọi API) khi được mở
 
   @override
   Widget build(BuildContext context) {
     // Các tab chưa có chức năng tạm hiện màn chờ.
-    const pages = <Widget>[
-      HubScreen(),
-      _ComingSoon(title: 'Đối kháng', icon: Icons.sports_mma_rounded),
-      _ComingSoon(title: 'Xếp hạng', icon: Icons.leaderboard_rounded),
-      _ComingSoon(title: 'Bạn bè', icon: Icons.people_rounded),
-      ProfileScreen(),
+    final pages = <Widget>[
+      const HubScreen(),
+      const _ComingSoon(title: 'Đối kháng', icon: Icons.sports_mma_rounded),
+      const _ComingSoon(title: 'Xếp hạng', icon: Icons.leaderboard_rounded),
+      _friendsVisited
+          ? FriendsScreen(active: _index == _friendsIndex)
+          : const SizedBox.shrink(),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) => setState(() {
+          _index = i;
+          if (i == _friendsIndex) _friendsVisited = true;
+        }),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
