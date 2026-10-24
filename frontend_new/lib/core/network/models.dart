@@ -178,6 +178,20 @@ class GameStats {
   }
 }
 
+/// `SubmitHistoryResponse` của POST /history: {record: HistoryDto, isPersonalBest}.
+/// Chỉ giữ phần app cần: điểm server tính và có phải kỷ lục cá nhân không.
+class SubmitResult {
+  final int score;
+  final bool isPersonalBest;
+
+  const SubmitResult({required this.score, this.isPersonalBest = false});
+
+  factory SubmitResult.fromJson(Map<String, dynamic> j) => SubmitResult(
+        score: ((j['record'] as Map?)?['score'] as int?) ?? 0,
+        isPersonalBest: (j['isPersonalBest'] as bool?) ?? false,
+      );
+}
+
 // ------------------------------------------------------------ bạn bè
 
 /// `FriendDto`: {userId, username, fullName?, avatarUrl?, status: online|in_match|offline, lastSeenAt?}.

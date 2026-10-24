@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../caro/caro_screen.dart';
 import '../soduku/ui/sudoku_home_screen.dart';
 import '../core/theme/app_tokens.dart';
+import '../rubik/screens/rubik_home_screen.dart';
 import '../XepHinh/xep_hinh_screen.dart';
 
 /// Thông tin một game hiển thị trên Hub.
@@ -118,7 +119,11 @@ class _GameCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          if (entry.code == 'CARO') {
+          if (entry.code == 'RUBIK') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RubikHomeScreen()),
+            );
+          } else if (entry.code == 'CARO') {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CaroScreen()),
             );

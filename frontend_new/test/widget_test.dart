@@ -8,8 +8,10 @@ import 'package:frontend_new/core/models/presence.dart';
 import 'package:frontend_new/core/network/api_client.dart';
 import 'package:frontend_new/core/network/models.dart';
 import 'package:frontend_new/core/network/token_storage.dart';
+import 'package:frontend_new/core/services/score_reporter.dart';
 import 'package:frontend_new/core/theme/theme_controller.dart';
 import 'package:frontend_new/main.dart';
+import 'package:frontend_new/rubik/screens/rubik_home_screen.dart';
 import 'package:frontend_new/soduku/ui/sudoku_home_screen.dart';
 import 'package:frontend_new/XepHinh/xep_hinh_screen.dart';
 
@@ -134,6 +136,10 @@ class _FakeApi implements ApiClient {
   Future<void> markRead(int userId) async {}
 
   @override
+  Future<SubmitResult> submitHistory(GameRecord record) async =>
+      SubmitResult(score: record.localScore);
+
+  @override
   Future<AuthResult> login({required String usernameOrEmail, required String password}) async =>
       const AuthResult(token: 't', user: _me);
 
@@ -222,6 +228,14 @@ void main() {
     await tester.tap(find.text('Sudoku'));
     await tester.pumpAndSettle();
     expect(find.byType(SudokuHomeScreen), findsOneWidget);
+  });
+
+  testWidgets('Home mở được Rubik', (WidgetTester tester) async {
+    await _pumpApp(tester);
+
+    await tester.tap(find.text('Rubik 3D'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RubikHomeScreen), findsOneWidget);
   });
 
   testWidgets('Home mở được Xếp hình', (WidgetTester tester) async {

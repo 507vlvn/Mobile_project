@@ -21,7 +21,12 @@ class ApiException implements Exception {
   static const timeoutMessage =
       'Máy chủ phản hồi quá lâu. Vui lòng thử lại sau ít phút.';
 
+  /// Lỗi do kết nối (đáng để xếp hàng đợi / thử lại).
+  bool get isConnectivity => isNetwork || isTimeout;
+
   bool get isUnauthorized => statusCode == 401;
+  bool get isClientError =>
+      statusCode != null && statusCode! >= 400 && statusCode! < 500;
 
   /// Dựng từ phản hồi lỗi HTTP (ProblemDetails). Ưu tiên thông báo đầu tiên
   /// trong `errors` (lỗi kiểm tra dữ liệu), sau đó tới `title`.

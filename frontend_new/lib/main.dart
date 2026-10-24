@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'auth/auth_controller.dart';
 import 'core/network/api_client.dart';
 import 'core/network/token_storage.dart';
+import 'core/services/api_score_reporter.dart';
+import 'core/services/score_reporter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'shell/main_shell.dart';
@@ -19,6 +21,10 @@ Future<void> main() async {
   final api = HttpApiClient(tokens: tokens);
   final auth = AuthController(api: api, tokens: tokens);
   api.onUnauthorized = auth.handleUnauthorized;
+  final reporter =
+      ApiScoreReporter(api: api, isLoggedIn: () => auth.isAuthenticated);
+  // Sau khi đăng nhập/khôi phục phiên: gửi dần các điểm đang xếp hàng
+  auth.onSignedIn = () => unawaited(reporter.flushQueue());
 
   runApp(
     MultiProvider(
@@ -26,6 +32,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: themeController),
         Provider<ApiClient>.value(value: api),
         ChangeNotifierProvider<AuthController>.value(value: auth),
+        Provider<ScoreReporter>.value(value: reporter),
       ],
       child: const MyApp(),
     ),

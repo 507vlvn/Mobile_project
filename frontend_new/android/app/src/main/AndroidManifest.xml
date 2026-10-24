@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Rubik: quét màu các mặt khối bằng camera -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <!-- Server API đang chạy http:// (chưa có HTTPS) nên cần cho phép cleartext -->
     <application
         android:usesCleartextTraffic="true"

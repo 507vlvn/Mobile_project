@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/app_config.dart';
+import '../services/score_reporter.dart';
 import 'api_exception.dart';
 import 'models.dart';
 import 'token_storage.dart';
@@ -35,6 +36,9 @@ abstract interface class ApiClient {
   Future<PlayerProfile> userProfile(int userId);
   Future<List<GameStats>> myRatings();
   Future<PagedResult<MatchHistoryItem>> matches({int page = 1, int pageSize = 20});
+
+  /// Nộp kết quả một ván chơi đơn (POST /history).
+  Future<SubmitResult> submitHistory(GameRecord record);
 
   // ---- Bạn bè ----
   Future<List<FriendInfo>> friends();
@@ -185,6 +189,11 @@ class HttpApiClient implements ApiClient {
             query: {'page': page, 'pageSize': pageSize})),
         MatchHistoryItem.fromJson,
       );
+
+  @override
+  Future<SubmitResult> submitHistory(GameRecord record) async =>
+      SubmitResult.fromJson(
+          _map(await _send('POST', '/history', body: record.toJson())));
 
   @override
   Future<List<FriendInfo>> friends() async => [
