@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/models/game_meta.dart' show relativeTimeVi;
@@ -5,15 +7,33 @@ import '../core/models/presence.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_exception.dart';
 import '../core/network/models.dart';
+import '../core/realtime/realtime_service.dart';
 
 /// Trạng thái màn Bạn bè: danh sách bạn (có online), lời mời đến/đi.
 ///
-/// Chưa có realtime: dữ liệu tải khi mở màn, khi kéo làm mới và sau mỗi
-/// hành động. Các request gọi TUẦN TỰ (bạn bè rồi lời mời).
+/// Trạng thái online cập nhật tức thì từ [RealtimeService.presence]; REST chỉ
+/// gọi khi mở màn / kéo làm mới / sau hành động / khi có lời mời mới hoặc vừa
+/// kết nối lại. Các request gọi TUẦN TỰ (bạn bè rồi lời mời).
 class FriendsController extends ChangeNotifier {
-  FriendsController({required ApiClient api}) : _api = api;
+  FriendsController({
+    required ApiClient api,
+    RealtimeService? realtime,
+    DateTime Function()? now,
+  })  : _api = api,
+        _now = now ?? DateTime.now {
+    if (realtime != null) {
+      _subs.addAll([
+        realtime.presence.listen(_onPresence),
+        realtime.friendRequests.listen((_) => unawaited(_refreshQuiet())),
+        realtime.friendAccepted.listen((_) => unawaited(_refreshQuiet())),
+        realtime.reconnected.listen((_) => unawaited(_refreshQuiet())),
+      ]);
+    }
+  }
 
   final ApiClient _api;
+  final DateTime Function() _now;
+  final List<StreamSubscription<Object?>> _subs = [];
 
   List<FriendInfo> _friends = const [];
   FriendRequests _requests = const FriendRequests();
@@ -100,6 +120,21 @@ class FriendsController extends ChangeNotifier {
     }
   }
 
+  void _onPresence(PresenceEvent e) {
+    final i = _friends.indexWhere((f) => f.userId == e.userId);
+    if (i < 0) return;
+    final old = _friends[i];
+    if (old.presence == e.status) return;
+    final updated = old.withPresence(
+      e.status,
+      lastSeenAt: e.status == PresenceStatus.offline ? _now() : null,
+    );
+    _friends = sortFriends([
+      for (var j = 0; j < _friends.length; j++) j == i ? updated : _friends[j],
+    ]);
+    _notify();
+  }
+
   // ---------------------------------------------------------- hành động
 
   Future<bool> _run(Future<void> Function() action) async {
@@ -165,6 +200,9 @@ class FriendsController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    for (final s in _subs) {
+      s.cancel();
+    }
     super.dispose();
   }
 }

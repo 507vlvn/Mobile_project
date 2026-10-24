@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'auth/auth_controller.dart';
 import 'core/network/api_client.dart';
 import 'core/network/token_storage.dart';
+import 'core/realtime/realtime_lifecycle.dart';
+import 'core/realtime/realtime_service.dart';
 import 'core/services/api_score_reporter.dart';
 import 'core/services/score_reporter.dart';
 import 'core/theme/app_theme.dart';
@@ -26,6 +28,11 @@ Future<void> main() async {
   // Sau khi đăng nhập/khôi phục phiên: gửi dần các điểm đang xếp hàng
   auth.onSignedIn = () => unawaited(reporter.flushQueue());
 
+  // Realtime (SignalR): tự kết nối khi đăng nhập, ngắt khi đăng xuất hoặc khi
+  // app ở nền quá 2 phút. Còn kết nối thì server mới báo mình "online" với bạn bè.
+  final realtime = SignalRRealtimeService(tokens: tokens);
+  RealtimeLifecycle(service: realtime, auth: auth).attach();
+
   runApp(
     MultiProvider(
       providers: [
@@ -33,6 +40,7 @@ Future<void> main() async {
         Provider<ApiClient>.value(value: api),
         ChangeNotifierProvider<AuthController>.value(value: auth),
         Provider<ScoreReporter>.value(value: reporter),
+        ListenableProvider<RealtimeService>.value(value: realtime),
       ],
       child: const MyApp(),
     ),

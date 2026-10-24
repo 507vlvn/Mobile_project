@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../auth/auth_controller.dart';
 import '../core/network/api_client.dart';
 import '../core/network/models.dart';
+import '../core/realtime/realtime_service.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_tokens.dart';
 import '../core/widgets/feedback_states.dart';
@@ -11,7 +12,7 @@ import '../core/widgets/user_avatar.dart';
 import 'chat_controller.dart';
 import 'logic/chat_format.dart';
 
-/// Màn chat 1-1. Tin mới được hỏi định kỳ khi màn đang mở (chưa có realtime).
+/// Màn chat 1-1. Tin mới đến qua realtime; mất kết nối thì hỏi định kỳ để dự phòng.
 class ChatScreen extends StatefulWidget {
   final UserSummary partner;
 
@@ -48,6 +49,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           api: context.read<ApiClient>(),
           myId: context.read<AuthController>().currentUser?.userId ?? 0,
           partnerId: widget.partner.userId,
+          realtime: maybeRealtimeOf(context),
         );
     _chat.addListener(_onChat);
     _scroll.addListener(_onScroll);

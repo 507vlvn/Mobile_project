@@ -8,6 +8,7 @@ import '../auth/login_screen.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_exception.dart';
 import '../core/network/models.dart';
+import '../core/realtime/realtime_service.dart';
 import '../core/theme/app_tokens.dart';
 import '../core/widgets/feedback_states.dart';
 import '../core/widgets/player_card.dart';
@@ -68,7 +69,10 @@ class _FriendsScreenState extends State<FriendsScreen>
     _friendsUserId = uid;
     _friends = uid == null
         ? null
-        : (FriendsController(api: context.read<ApiClient>())..load());
+        : (FriendsController(
+            api: context.read<ApiClient>(),
+            realtime: maybeRealtimeOf(context),
+          )..load());
   }
 
   @override

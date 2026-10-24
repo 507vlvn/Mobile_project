@@ -5,24 +5,29 @@ import 'package:flutter/foundation.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_exception.dart';
 import '../core/network/models.dart';
+import '../core/realtime/realtime_service.dart';
 import 'logic/chat_format.dart';
 import 'logic/message_merge.dart';
 
 /// Trạng thái của một cuộc trò chuyện 1-1.
 ///
-/// Chưa có realtime: khi màn chat đang mở (và app ở tiền cảnh) thì cứ
-/// [pollInterval] hỏi tin mới một lần (`afterId` = id cuối, rất nhẹ). Ra nền thì
-/// dừng hỏi; quay lại thì bù ngay. Cuộn lên để tải tin cũ hơn.
+/// Tin mới đến tức thì qua realtime ([RealtimeService.messages]); vừa kết nối
+/// lại thì bù tin còn thiếu (`afterId`). Khi KHÔNG có kết nối realtime, màn chat
+/// đang mở cứ [pollInterval] hỏi tin mới một lần để dự phòng. Ra nền thì dừng;
+/// quay lại thì bù ngay. Cuộn lên để tải tin cũ hơn.
 class ChatController extends ChangeNotifier {
   ChatController({
     required ApiClient api,
     required this.myId,
     required this.partnerId,
+    RealtimeService? realtime,
     this.pageSize = 30,
     this.pollInterval = const Duration(seconds: 5),
-  }) : _api = api;
+  })  : _api = api,
+        _realtime = realtime;
 
   final ApiClient _api;
+  final RealtimeService? _realtime;
   final int myId;
   final int partnerId;
   final int pageSize;
@@ -39,6 +44,8 @@ class ChatController extends ChangeNotifier {
   bool _sending = false;
 
   Timer? _poll;
+  StreamSubscription<ChatMessage>? _msgSub;
+  StreamSubscription<void>? _reconnectSub;
   bool _foreground = false;
   bool _catchingUp = false;
   bool _disposed = false;
@@ -58,17 +65,39 @@ class ChatController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  /// Tải trang mới nhất, đánh dấu đã đọc và bắt đầu hỏi tin mới định kỳ.
+  /// Tải trang mới nhất, đánh dấu đã đọc, nghe tin realtime và bật hỏi dự phòng.
   Future<void> start() async {
     _foreground = true;
+    _listen();
     await _loadInitial();
     _startPolling();
+  }
+
+  void _listen() {
+    final rt = _realtime;
+    if (rt == null || _msgSub != null) return;
+    _msgSub = rt.messages.listen(_onRealtimeMessage);
+    // Kết nối lại: có thể đã lỡ tin trong lúc mất mạng -> bù một lần.
+    _reconnectSub = rt.reconnected.listen((_) => unawaited(catchUp()));
+  }
+
+  void _onRealtimeMessage(ChatMessage m) {
+    final fromPartner = m.senderId == partnerId && m.receiverId == myId;
+    final fromMeElsewhere = m.senderId == myId && m.receiverId == partnerId;
+    if (!fromPartner && !fromMeElsewhere) return;
+    _messages = mergeMessages(_messages, [m]);
+    _notify();
+    if (fromPartner && !m.isRead) _markReadIfNeeded([m]);
   }
 
   void _startPolling() {
     _poll?.cancel();
     if (_disposed || !_foreground) return;
-    _poll = Timer.periodic(pollInterval, (_) => unawaited(catchUp()));
+    _poll = Timer.periodic(pollInterval, (_) {
+      // Còn kết nối realtime thì tin đã tự đến, không cần hỏi.
+      if (_realtime?.isConnected ?? false) return;
+      unawaited(catchUp());
+    });
   }
 
   Future<void> _loadInitial() async {
@@ -227,6 +256,8 @@ class ChatController extends ChangeNotifier {
     _disposed = true;
     _foreground = false;
     _poll?.cancel();
+    _msgSub?.cancel();
+    _reconnectSub?.cancel();
     super.dispose();
   }
 }

@@ -45,6 +45,9 @@ dependencies:
   image: ^4.10.1
   image_picker: ^1.1.2
 
+  # Realtime (SignalR /hubs/game): trạng thái online, tin nhắn, lời mời kết bạn
+  signalr_netcore: ^1.4.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

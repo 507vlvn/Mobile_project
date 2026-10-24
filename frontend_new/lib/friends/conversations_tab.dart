@@ -1,18 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/models/game_meta.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_exception.dart';
 import '../core/network/models.dart';
+import '../core/realtime/realtime_service.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/app_tokens.dart';
 import '../core/widgets/feedback_states.dart';
 import '../core/widgets/user_avatar.dart';
-import '../core/models/game_meta.dart';
 import 'chat_screen.dart';
 
-/// Danh sách hội thoại. Chỉ tải khi mở và khi kéo để làm mới.
+/// Danh sách hội thoại. Tải khi mở, khi kéo để làm mới và khi có tin mới
+/// qua realtime (gộp nhiều tin liền nhau thành một lần tải).
 class ConversationsTab extends StatefulWidget {
   /// Báo số tin chưa đọc chính xác để cập nhật huy hiệu.
   final ValueChanged<int>? onUnreadCount;
@@ -28,11 +32,26 @@ class ConversationsTabState extends State<ConversationsTab> {
   bool _loading = true;
   String? _error;
   int _requestId = 0;
+  StreamSubscription<ChatMessage>? _msgSub;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
+    _msgSub = maybeRealtimeOf(context)?.messages.listen((_) {
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 800), () {
+        if (mounted) load();
+      });
+    });
     load();
+  }
+
+  @override
+  void dispose() {
+    _msgSub?.cancel();
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> load() async {

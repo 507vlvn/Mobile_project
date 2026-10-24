@@ -215,6 +215,15 @@ class FriendInfo {
   UserSummary get summary =>
       UserSummary(userId: userId, username: username, fullName: fullName);
 
+  FriendInfo withPresence(PresenceStatus s, {DateTime? lastSeenAt}) =>
+      FriendInfo(
+        userId: userId,
+        username: username,
+        fullName: fullName,
+        presence: s,
+        lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+      );
+
   factory FriendInfo.fromJson(Map<String, dynamic> j) => FriendInfo(
         userId: j['userId'] as int,
         username: j['username'] as String,
