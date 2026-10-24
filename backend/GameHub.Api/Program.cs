@@ -133,9 +133,15 @@ app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseCors("dev");
+}
+
+// Swagger: luôn bật khi Development; ở Production bật bằng cấu hình Swagger:Enabled
+// (trên VPS đặt biến môi trường Swagger__Enabled=true trong service systemd).
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
+{
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseCors("dev");
 }
 
 // Xác thực trước để rate limiter đọc được claim sub
