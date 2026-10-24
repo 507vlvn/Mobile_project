@@ -180,6 +180,8 @@ class InlineErrorBanner extends StatelessWidget {
 
 /// Gợi ý cách khắc phục tuỳ loại lỗi.
 String? errorHintFor(String message) {
+  // Lỗi cấu hình build (thiếu .env): bật mạng không giúp được gì.
+  if (message.contains('dart-define')) return null;
   if (message.contains('mạng') || message.contains('máy chủ')) {
     return 'Bật Wi-Fi/4G rồi bấm lại. Bạn vẫn có thể chơi với tư cách khách.';
   }
