@@ -9,6 +9,7 @@ class SudokuKeypad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final counts = controller.numberCounts;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -23,22 +24,26 @@ class SudokuKeypad extends StatelessWidget {
                 icon: Icons.undo_rounded,
                 label: 'Hoàn tác',
                 onTap: controller.undo,
+                isDark: isDark,
               ),
               _buildActionButton(
                 icon: Icons.backspace_outlined,
                 label: 'Xóa',
                 onTap: controller.erase,
+                isDark: isDark,
               ),
               _buildActionButton(
                 icon: Icons.edit_note_rounded,
                 label: controller.isNotesMode ? 'Ghi chú (Bật)' : 'Ghi chú',
                 isActive: controller.isNotesMode,
                 onTap: controller.toggleNotesMode,
+                isDark: isDark,
               ),
               _buildActionButton(
                 icon: Icons.lightbulb_outline_rounded,
                 label: 'Gợi ý',
                 onTap: controller.hint,
+                isDark: isDark,
               ),
             ],
           ),
@@ -61,6 +66,7 @@ class SudokuKeypad extends StatelessWidget {
                       number: i,
                       placedCount: counts[i] ?? 0,
                       width: buttonWidth,
+                      isDark: isDark,
                     ),
                   ],
                 ],
@@ -77,6 +83,7 @@ class SudokuKeypad extends StatelessWidget {
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
+    required bool isDark,
   }) {
     return InkWell(
       onTap: onTap,
@@ -84,10 +91,14 @@ class SudokuKeypad extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF4F46E5) : const Color(0xFFF1F5F9),
+          color: isActive
+              ? const Color(0xFF2563EB)
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isActive ? const Color(0xFF4338CA) : const Color(0xFFE2E8F0),
+            color: isActive
+                ? const Color(0xFF3B82F6)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
         ),
         child: Column(
@@ -96,7 +107,9 @@ class SudokuKeypad extends StatelessWidget {
             Icon(
               icon,
               size: 24,
-              color: isActive ? Colors.white : const Color(0xFF334155),
+              color: isActive
+                  ? Colors.white
+                  : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155)),
             ),
             const SizedBox(height: 4),
             Text(
@@ -104,7 +117,9 @@ class SudokuKeypad extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isActive ? Colors.white : const Color(0xFF475569),
+                color: isActive
+                    ? Colors.white
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)),
               ),
             ),
           ],
@@ -117,13 +132,31 @@ class SudokuKeypad extends StatelessWidget {
     required int number,
     required int placedCount,
     required double width,
+    required bool isDark,
   }) {
     final isCompleted = placedCount >= 9;
 
+    Color bgColor;
+    BorderSide borderSide;
+    Color numColor;
+    Color countColor;
+
+    if (isCompleted) {
+      bgColor = isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : const Color(0xFFF1F5F9);
+      borderSide = BorderSide(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1));
+      numColor = isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8);
+      countColor = const Color(0xFF10B981);
+    } else {
+      bgColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFEEF2FF);
+      borderSide = BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFC7D2FE));
+      numColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E1B4B);
+      countColor = isDark ? const Color(0xFF38BDF8) : const Color(0xFF6366F1);
+    }
+
     return Material(
-      color: isCompleted ? const Color(0xFFF1F5F9) : const Color(0xFFEEF2FF),
+      color: bgColor,
       borderRadius: BorderRadius.circular(10),
-      elevation: isCompleted ? 0 : 1,
+      elevation: isCompleted ? 0 : (isDark ? 2 : 1),
       child: InkWell(
         onTap: isCompleted ? null : () => controller.inputNumber(number),
         borderRadius: BorderRadius.circular(10),
@@ -132,9 +165,7 @@ class SudokuKeypad extends StatelessWidget {
           height: 58,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isCompleted ? const Color(0xFFCBD5E1) : const Color(0xFFC7D2FE),
-            ),
+            border: Border.fromBorderSide(borderSide),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -144,9 +175,7 @@ class SudokuKeypad extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: isCompleted
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF1E1B4B),
+                  color: numColor,
                 ),
               ),
               Text(
@@ -154,9 +183,7 @@ class SudokuKeypad extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: isCompleted
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFF6366F1),
+                  color: countColor,
                 ),
               ),
             ],

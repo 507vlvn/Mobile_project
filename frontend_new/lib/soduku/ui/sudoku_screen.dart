@@ -80,54 +80,78 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     required String message,
     required bool isWin,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
         title: Text(
           title,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: isWin ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+            color: isWin
+                ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF16A34A))
+                : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626)),
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message, textAlign: TextAlign.center),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+            ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 Column(
                   children: [
-                    const Text('Thời gian', style: TextStyle(color: Colors.grey)),
+                    Text('Thời gian', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600, fontSize: 13)),
                     const SizedBox(height: 4),
                     Text(
                       _controller.elapsedFormatted,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                      ),
                     ),
                   ],
                 ),
                 Column(
                   children: [
-                    const Text('Số lỗi', style: TextStyle(color: Colors.grey)),
+                    Text('Số lỗi', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600, fontSize: 13)),
                     const SizedBox(height: 4),
                     Text(
                       '${_controller.mistakes}/${_controller.maxMistakes}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                      ),
                     ),
                   ],
                 ),
                 Column(
                   children: [
-                    const Text('Độ khó', style: TextStyle(color: Colors.grey)),
+                    Text('Độ khó', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600, fontSize: 13)),
                     const SizedBox(height: 4),
                     Text(
                       _controller.displayTitle,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                      ),
                     ),
                   ],
                 ),
@@ -142,40 +166,60 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
               Navigator.pop(ctx);
               _controller.restartCurrentGame();
             },
-            child: const Text('Chơi lại'),
-          ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _controller.startNewGame();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Ván mới'),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showNewGameConfirm() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tạo ván mới?'),
-        content: const Text('Tiến trình ván hiện tại sẽ bị đặt lại.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy'),
+            child: Text('Chơi lại', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               _controller.startNewGame();
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Ván mới'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNewGameConfirm() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+        ),
+        title: Text(
+          'Tạo ván mới?',
+          style: TextStyle(
+            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Tiến trình ván hiện tại sẽ bị đặt lại.',
+          style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Hủy', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _controller.startNewGame();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Bắt đầu'),
           ),
         ],
@@ -198,6 +242,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final progress = _controller.progressPercent;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return PopScope(
       canPop: true,
@@ -206,26 +251,37 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
         _controller.pauseTimer();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 20,
+              color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+            ),
             onPressed: () {
               _controller.pauseTimer();
               Navigator.maybePop(context);
             },
             tooltip: 'Trang chủ',
           ),
-          title: const Text(
+          title: Text(
             'Sudoku Cổ điển',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+            ),
           ),
           centerTitle: true,
-          backgroundColor: Colors.white,
-          elevation: 0.5,
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          elevation: isDark ? 0 : 0.5,
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh_rounded),
+              icon: Icon(
+                Icons.refresh_rounded,
+                color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+              ),
               tooltip: 'Ván mới',
               onPressed: _showNewGameConfirm,
             ),
@@ -235,7 +291,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
           child: Column(
             children: [
               // Thanh thông số trên cùng (Độ khó, Lỗi, Đồng hồ)
-              _buildStatusBar(),
+              _buildStatusBar(isDark),
 
               // Thanh tiến độ giải đề
               Padding(
@@ -244,8 +300,10 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: progress / 100.0,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isDark ? const Color(0xFF38BDF8) : const Color(0xFF4F46E5),
+                    ),
                     minHeight: 5,
                   ),
                 ),
@@ -268,21 +326,29 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                           Positioned.fill(
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.94),
+                                color: isDark
+                                    ? const Color(0xFF0F172A).withValues(alpha: 0.95)
+                                    : Colors.white.withValues(alpha: 0.95),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                ),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.pause_circle_outline,
-                                      size: 64, color: Color(0xFF4F46E5)),
+                                  Icon(
+                                    Icons.pause_circle_outline,
+                                    size: 64,
+                                    color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF4F46E5),
+                                  ),
                                   const SizedBox(height: 12),
-                                  const Text(
+                                  Text(
                                     'Đang tạm dừng',
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E293B),
+                                      color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -291,7 +357,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                                     icon: const Icon(Icons.play_arrow_rounded),
                                     label: const Text('Tiếp tục'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4F46E5),
+                                      backgroundColor: const Color(0xFF2563EB),
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 24, vertical: 12),
@@ -319,7 +385,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     );
   }
 
-  Widget _buildStatusBar() {
+  Widget _buildStatusBar(bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
@@ -327,15 +393,19 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
         children: [
           // Bộ chọn độ khó
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFCBD5E1)),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+              ),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<SudokuDifficulty>(
                 value: _controller.difficulty,
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                iconEnabledColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 isDense: true,
                 onChanged: (newDiff) {
                   if (newDiff != null && newDiff != _controller.difficulty) {
@@ -347,10 +417,10 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                     value: diff,
                     child: Text(
                       diff.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: Color(0xFF1E293B),
+                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                       ),
                     ),
                   );
@@ -367,7 +437,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade600,
+                  color: isDark ? const Color(0xFF94A3B8) : Colors.grey.shade600,
                 ),
               ),
               Text(
@@ -376,8 +446,8 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: _controller.mistakes > 0
-                      ? const Color(0xFFDC2626)
-                      : const Color(0xFF1E293B),
+                      ? const Color(0xFFEF4444)
+                      : (isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B)),
                 ),
               ),
             ],
@@ -386,26 +456,30 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
           // Đồng hồ bấm giờ & Nút tạm dừng
           Row(
             children: [
-              const Icon(Icons.timer_outlined, size: 18, color: Color(0xFF64748B)),
+              Icon(
+                Icons.timer_outlined,
+                size: 18,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
               const SizedBox(width: 4),
               Text(
                 _controller.elapsedFormatted,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                 ),
               ),
               const SizedBox(width: 4),
               IconButton(
-                iconSize: 20,
+                iconSize: 22,
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 icon: Icon(
                   _controller.status == SudokuStatus.paused
                       ? Icons.play_arrow_rounded
                       : Icons.pause_rounded,
-                  color: const Color(0xFF4F46E5),
+                  color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF4F46E5),
                 ),
                 onPressed: _controller.togglePause,
               ),

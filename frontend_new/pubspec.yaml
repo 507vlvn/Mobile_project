@@ -38,6 +38,7 @@ dependencies:
   # Auth & state management
   provider: ^6.1.2
   http: ^1.2.2
+  jwt_decoder: ^2.0.1
 
   # Rubik: giải Kociemba, camera quét mặt khối, xử lý ảnh màu
   cuber: ^0.4.0
