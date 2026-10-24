@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="GameHub.Api/GameHub.Api.csproj" />
+  <Project Path="GameHub.Tests/GameHub.Tests.csproj" />
+</Solution>
