@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
+
 import 'core/theme/app_theme.dart';
-import 'XepHinh/xep_hinh_screen.dart';
+import 'shell/main_shell.dart';
 
 void main() {
-  runApp(const XepHinhApp());
+  runApp(const MyApp());
 }
 
-class XepHinhApp extends StatelessWidget {
-  const XepHinhApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Xếp Hình Master',
+      title: 'GameHub',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
-      home: const XepHinhScreen(),
+
+      home: const MainShell(),
     );
   }
 }
