@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../caro/caro_screen.dart';
 import '../core/theme/app_tokens.dart';
 
 /// Thông tin một game hiển thị trên Hub.
@@ -20,28 +21,28 @@ class _GameEntry {
 }
 
 final _games = <_GameEntry>[
-  _GameEntry(
+  const _GameEntry(
     code: 'RUBIK',
     name: 'Rubik 3D',
     tagline: 'Vuốt để xoay tầng, luyện giải hoặc quét khối thật',
     icon: Icons.view_in_ar_rounded,
     color: Color(0xFF7C3AED),
   ),
-  _GameEntry(
+  const _GameEntry(
     code: 'SUDOKU',
     name: 'Sudoku',
     tagline: 'Điền số 1–9, mỗi đề chỉ có một lời giải',
     icon: Icons.grid_3x3_rounded,
     color: Color(0xFF2563EB),
   ),
-  _GameEntry(
+  const _GameEntry(
     code: 'PUZZLE',
     name: 'Xếp hình',
     tagline: 'Trượt các ô số về đúng thứ tự',
     icon: Icons.apps_rounded,
     color: Color(0xFFD97706),
   ),
-  _GameEntry(
+  const _GameEntry(
     code: 'CARO',
     name: 'Caro',
     tagline: 'Đấu trí với máy, 5 quân liên tiếp là thắng',
@@ -114,12 +115,21 @@ class _GameCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        // Chưa có chức năng: chỉ thông báo, sẽ nối màn game ở bước sau.
-        onTap: () => ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(content: Text('${entry.name} đang được phát triển, sắp ra mắt!')),
-          ),
+        onTap: () {
+          if (entry.code == 'CARO') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CaroScreen()),
+            );
+          } else {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text('${entry.name} đang được phát triển, sắp ra mắt!'),
+                ),
+              );
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Row(
