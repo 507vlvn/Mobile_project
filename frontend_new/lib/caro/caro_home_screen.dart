@@ -13,6 +13,8 @@ import 'package:frontend_new/caro/theme/caro_theme.dart';
 import 'package:frontend_new/caro/widgets/caro_board_view.dart';
 import 'package:frontend_new/caro/widgets/difficulty_selector.dart';
 import 'package:frontend_new/caro/widgets/primary_button.dart';
+import 'package:frontend_new/core/realtime/match_models.dart';
+import 'package:frontend_new/pvp/pvp_lobby_screen.dart';
 
 /// Màn hình chọn chế độ chơi Caro: Thiết kế tinh gọn, hiện đại, xem trước bàn cờ trực tiếp.
 class CaroHomeScreen extends StatefulWidget {
@@ -438,6 +440,16 @@ class _CaroHomeScreenState extends State<CaroHomeScreen> {
                 label: 'Bắt đầu chơi',
                 icon: Icons.play_arrow_rounded,
                 onPressed: _startGame,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              // Đấu online với người khác (xếp hạng / mời bạn bè) — sảnh Đối kháng
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const PvpLobbyScreen(initialGame: kGameCaro, embedded: false),
+                )),
+                icon: const Icon(Icons.public_rounded),
+                label: const Text('Đấu online với người khác'),
               ),
               const SizedBox(height: AppSpacing.md),
             ],

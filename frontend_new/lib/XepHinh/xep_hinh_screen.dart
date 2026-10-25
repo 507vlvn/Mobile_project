@@ -4,6 +4,8 @@ import 'sliding_puzzle/sliding_puzzle_screen.dart';
 import 'jigsaw_puzzle/jigsaw_puzzle_screen.dart';
 import 'phaseshift/phaseshift_screen.dart';
 import 'shared/models/difficulty.dart';
+import '../core/realtime/match_models.dart';
+import '../pvp/pvp_lobby_screen.dart';
 
 class XepHinhScreen extends StatelessWidget {
   const XepHinhScreen({super.key});
@@ -90,6 +92,24 @@ class XepHinhScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (context) => const SlidingPuzzleScreen(
                               difficulty: GameDifficulty.easy,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    _buildMenuCard(
+                      context: context,
+                      title: 'Đua Xếp số với người khác',
+                      subtitle: 'Cùng một đề, ai xếp xong trước thắng (online)',
+                      icon: Icons.sports_score_rounded,
+                      color: Colors.teal.shade700,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const PvpLobbyScreen(
+                              initialGame: kGamePuzzle,
+                              embedded: false,
                             ),
                           ),
                         );

@@ -9,7 +9,10 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_tokens.dart';
 import '../core/widgets/player_card.dart';
 import '../core/widgets/primary_button.dart';
+import '../core/models/presence.dart';
 import '../friends/chat_screen.dart';
+import '../pvp/invite_sheet.dart';
+import '../pvp/pvp_common.dart';
 import 'game_stat_tile.dart';
 
 /// Mở thẻ hồ sơ người chơi (GET /users/{id}/profile) dạng bottom sheet:
@@ -268,6 +271,19 @@ class _PlayerProfileSheetState extends State<PlayerProfileSheet> {
           ),
         ));
         widgets.add(const SizedBox(height: AppSpacing.md));
+        if (maybeMatchSessionOf(context) != null && p.presence == PresenceStatus.online) {
+          widgets.add(PrimaryButton(
+            label: 'Mời đấu',
+            icon: Icons.sports_esports_rounded,
+            onPressed: () {
+              final nav = Navigator.of(context);
+              final friend = widget.user;
+              nav.pop();
+              showInviteSheet(nav.context, friend);
+            },
+          ));
+          widgets.add(const SizedBox(height: AppSpacing.sm));
+        }
         widgets.add(PrimaryButton(
           label: 'Nhắn tin',
           icon: Icons.chat_bubble_outline_rounded,

@@ -34,6 +34,9 @@ class _CaroOnlineScreenState extends State<CaroOnlineScreen> {
   String? _shownResultFor;
   bool _sheetOpen = false;
   CaroBoardTheme _theme = CaroBoardTheme.wood;
+
+  /// Cài đặt "Thao tác 1 chạm" của Caro: chạm là đặt quân, không cần xem trước.
+  bool _oneTap = false;
   StreamSubscription<MatchInfo>? _startSub;
 
   @override
@@ -56,7 +59,13 @@ class _CaroOnlineScreenState extends State<CaroOnlineScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final t = CaroBoardTheme.fromName(prefs.getString('caro_board_theme'));
-      if (mounted) setState(() => _theme = t);
+      final oneTap = prefs.getBool('caro_one_tap') ?? false;
+      if (mounted) {
+        setState(() {
+          _theme = t;
+          _oneTap = oneTap;
+        });
+      }
     } catch (_) {}
   }
 
@@ -102,7 +111,7 @@ class _CaroOnlineScreenState extends State<CaroOnlineScreen> {
     if (m == null || !m.active || !m.isMyTurn || s.busy) return;
     final board = CaroOnlineBoard.from(m, s.firstMoverId);
     if (board.cells[idx] != kCaroEmpty) return;
-    if (_preview == idx) {
+    if (_oneTap || _preview == idx) {
       setState(() => _preview = null);
       s.caroMove(idx ~/ kCaroSize, idx % kCaroSize);
     } else {

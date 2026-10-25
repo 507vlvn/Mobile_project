@@ -4,7 +4,10 @@ import '../core/network/models.dart';
 import '../core/theme/app_tokens.dart';
 import '../core/widgets/feedback_states.dart';
 import '../core/widgets/player_card.dart';
+import '../core/models/presence.dart';
 import '../profile/player_profile_sheet.dart';
+import '../pvp/invite_sheet.dart';
+import '../pvp/pvp_common.dart';
 import 'chat_screen.dart';
 import 'friends_controller.dart';
 
@@ -118,6 +121,10 @@ class FriendsList extends StatelessWidget {
           final f = c.friends[i - 1];
           return FriendRow(
             friend: f,
+            // Mời đấu: chỉ khi app có phần Đối kháng và bạn đang online (không trong trận)
+            onInvite: maybeMatchSessionOf(context) != null && f.presence == PresenceStatus.online
+                ? () => showInviteSheet(context, f.summary)
+                : null,
             onChat: () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => ChatScreen(partner: f.summary))),
             onMenu: (m) => _menu(context, m, f),
@@ -143,11 +150,15 @@ class FriendRow extends StatelessWidget {
   final FriendInfo friend;
   final VoidCallback onChat;
   final ValueChanged<FriendMenu> onMenu;
+
+  /// Mời đấu giao hữu; null = ẩn nút (bạn offline / đang trong trận).
+  final VoidCallback? onInvite;
   const FriendRow({
     super.key,
     required this.friend,
     required this.onChat,
     required this.onMenu,
+    this.onInvite,
   });
 
   @override
@@ -166,6 +177,15 @@ class FriendRow extends StatelessWidget {
                 subtitle: presenceText(f),
               ),
             ),
+            if (onInvite != null)
+              IconButton(
+                tooltip: 'Mời ${f.displayName} đấu',
+                constraints: const BoxConstraints(
+                    minWidth: kMinTouchTarget, minHeight: kMinTouchTarget),
+                color: Theme.of(context).colorScheme.primary,
+                onPressed: onInvite,
+                icon: const Icon(Icons.sports_esports_rounded),
+              ),
             IconButton(
               tooltip: 'Nhắn tin cho ${f.displayName}',
               constraints: const BoxConstraints(

@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:frontend_new/XepHinh/shared/models/difficulty.dart';
+import 'package:frontend_new/XepHinh/xep_hinh_screen.dart';
+import 'package:frontend_new/core/models/presence.dart';
+import 'package:frontend_new/friends/friends_tab.dart';
+import 'package:frontend_new/pvp/invite_sheet.dart';
 import 'package:frontend_new/XepHinh/sliding_puzzle/sliding_puzzle_logic.dart';
 import 'package:frontend_new/auth/auth_controller.dart';
 import 'package:frontend_new/core/network/api_client.dart';
@@ -39,7 +43,7 @@ class _Env {
   _Env(this.rt, this.session);
 }
 
-Future<_Env> _pump(WidgetTester tester, {bool loggedIn = true}) async {
+Future<_Env> _pump(WidgetTester tester, {bool loggedIn = true, Widget home = const PvpLobbyScreen()}) async {
   SharedPreferences.setMockInitialValues(loggedIn ? {'auth_token': 't'} : {});
   debugResetMatchRoute();
   final api = _Api();
@@ -60,7 +64,7 @@ Future<_Env> _pump(WidgetTester tester, {bool loggedIn = true}) async {
       navigatorKey: appNavigatorKey,
       scaffoldMessengerKey: appMessengerKey,
       builder: (context, child) => PvpNavigator(child: child!),
-      home: const PvpLobbyScreen(),
+      home: home,
     ),
   ));
   await tester.pumpAndSettle();
@@ -234,5 +238,72 @@ void main() {
   test('progressPercent tăng khi ô về đúng chỗ, 100 khi xong', () {
     final l = SlidingPuzzleLogic(difficulty: GameDifficulty.easy, seed: 1);
     expect(l.progressPercent, inInclusiveRange(0, 99));
+  });
+
+  testWidgets('Dòng bạn bè có nút Mời đấu khi được truyền onInvite', (tester) async {
+    var invited = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+        body: FriendRow(
+          friend: const FriendInfo(userId: 9, username: 'an', fullName: 'Nguyễn An', presence: PresenceStatus.online),
+          onChat: () {},
+          onMenu: (_) {},
+          onInvite: () => invited++,
+        ),
+      ),
+    ));
+    await tester.tap(find.byTooltip('Mời Nguyễn An đấu'));
+    expect(invited, 1);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+        body: FriendRow(
+          friend: const FriendInfo(userId: 9, username: 'an', fullName: 'Nguyễn An'),
+          onChat: () {},
+          onMenu: (_) {},
+        ),
+      ),
+    ));
+    expect(find.byTooltip('Mời Nguyễn An đấu'), findsNothing, reason: 'không có onInvite (offline) thì ẩn');
+  });
+
+  testWidgets('Bảng mời đấu: chọn Đua Xếp số 5×5 rồi gửi', (tester) async {
+    final env = await _pump(
+      tester,
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => showInviteSheet(context, const UserSummary(userId: 9, username: 'an', fullName: 'Nguyễn An')),
+            child: const Text('mở'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('mở'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mời Nguyễn An đấu'), findsOneWidget);
+    await tester.tap(find.text('Đua Xếp số'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5×5'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gửi lời mời'));
+    await tester.pumpAndSettle();
+    expect(env.rt.calls.last, 'Invite 9 PUZZLE 3');
+    expect(env.session.phase, PvpPhase.inviting);
+    expect(find.textContaining('Đã mời Nguyễn An'), findsOneWidget);
+    await _dispose(tester);
+  });
+
+  testWidgets('Màn Xếp hình có lối vào Đua Xếp số online', (tester) async {
+    await _pump(tester, home: const XepHinhScreen());
+    final card = find.text('Đua Xếp số với người khác');
+    await tester.scrollUntilVisible(card, 200);
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.byType(PvpLobbyScreen), findsOneWidget);
+    expect(find.text('Đối kháng'), findsOneWidget);
+    await _dispose(tester);
   });
 }
