@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'jigsaw_puzzle/models/jigsaw_picture.dart';
 import 'shared/models/difficulty.dart';
 import 'sliding_puzzle/sliding_puzzle_screen.dart';
 import 'jigsaw_puzzle/jigsaw_puzzle_screen.dart';
@@ -18,6 +20,30 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   GameMode _selectedMode = GameMode.sliding;
   GameDifficulty _selectedDifficulty = GameDifficulty.easy;
   bool _enableTimeLimit = false;
+  JigsawPicture _jigsawPicture = JigsawPicture.builtIns.first;
+
+  /// Ảnh người chơi đã chọn từ thư viện (giữ lại để chọn lại nhanh).
+  JigsawPicture? _customPicture;
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+      );
+      if (file == null || !mounted) return;
+      setState(() {
+        _customPicture = JigsawPicture.file(file.path);
+        _jigsawPicture = _customPicture!;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không mở được thư viện ảnh. Hãy cấp quyền rồi thử lại.')),
+      );
+    }
+  }
 
   void _startGame() {
     Widget targetScreen;
@@ -26,7 +52,10 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
         targetScreen = SlidingPuzzleScreen(difficulty: _selectedDifficulty);
         break;
       case GameMode.jigsaw:
-        targetScreen = JigsawPuzzleScreen(difficulty: _selectedDifficulty);
+        targetScreen = JigsawPuzzleScreen(
+          difficulty: _selectedDifficulty,
+          picture: _jigsawPicture,
+        );
         break;
       case GameMode.phaseShift:
         targetScreen = PhaseShiftScreen(
@@ -120,6 +149,27 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
+            if (_selectedMode == GameMode.jigsaw) ...[
+              Text(
+                '3. Chọn hình',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 104,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final p in [...JigsawPicture.builtIns, ?_customPicture])
+                      _buildPictureTile(p),
+                    _buildGalleryTile(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
             if (_selectedMode == GameMode.phaseShift) ...[
               Card(
                 child: SwitchListTile(
@@ -169,6 +219,69 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPictureTile(JigsawPicture picture) {
+    final selected = identical(picture, _jigsawPicture);
+    final color = Theme.of(context).colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: GestureDetector(
+        onTap: () => setState(() => _jigsawPicture = picture),
+        child: Column(
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? color : Colors.grey.withAlpha(100),
+                  width: selected ? 3 : 1,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(selected ? 9 : 11),
+                child: picture.build(),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              picture.name,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGalleryTile() {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return GestureDetector(
+      onTap: _pickFromGallery,
+      child: Column(
+        children: [
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withAlpha(100)),
+            ),
+            child: Icon(Icons.add_photo_alternate_outlined, size: 32, color: muted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _customPicture == null ? 'Từ thư viện' : 'Chọn ảnh khác',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
       ),
     );
   }

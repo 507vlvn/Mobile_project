@@ -4,13 +4,19 @@ import '../shared/services/timer_service.dart';
 import '../shared/services/score_service.dart';
 import '../shared/widgets/game_header_widget.dart';
 import 'jigsaw_puzzle_logic.dart';
+import 'models/jigsaw_picture.dart';
+import 'widgets/jigsaw_piece_image.dart';
 
 class JigsawPuzzleScreen extends StatefulWidget {
   final GameDifficulty difficulty;
 
+  /// Hình để ghép (mặc định: tranh có sẵn đầu tiên).
+  final JigsawPicture? picture;
+
   const JigsawPuzzleScreen({
     super.key,
     this.difficulty = GameDifficulty.easy,
+    this.picture,
   });
 
   @override
@@ -20,6 +26,10 @@ class JigsawPuzzleScreen extends StatefulWidget {
 class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
   late JigsawPuzzleLogic _logic;
   late TimerService _timerService;
+  late final JigsawPicture _picture = widget.picture ?? JigsawPicture.builtIns.first;
+
+  /// Hiện số thứ tự đúng của từng mảnh (gợi ý).
+  bool _showNumbers = false;
 
   @override
   void initState() {
@@ -74,6 +84,44 @@ class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
     }
   }
 
+  void _showOriginal() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        // Ảnh vuông vừa màn hình cả khi điện thoại xoay ngang.
+        final screen = MediaQuery.sizeOf(ctx);
+        final side = [screen.width * 0.85, screen.height * 0.65, 480.0]
+            .reduce((a, b) => a < b ? a : b);
+        return Dialog(
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: SizedBox(
+            width: side,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: side, height: side, child: _picture.build()),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('Ảnh gốc: ${_picture.name}')),
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Đóng'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showWinDialog() {
     final int finalScore = ScoreService.calculateScore(
       moves: _logic.moves,
@@ -126,6 +174,18 @@ class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
       appBar: AppBar(
         title: Text('Jigsaw Puzzle - ${widget.difficulty.displayName}'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: _showNumbers ? 'Ẩn số gợi ý' : 'Hiện số gợi ý',
+            icon: Icon(_showNumbers ? Icons.pin_rounded : Icons.pin_outlined),
+            onPressed: () => setState(() => _showNumbers = !_showNumbers),
+          ),
+          IconButton(
+            tooltip: 'Xem ảnh gốc',
+            icon: const Icon(Icons.image_outlined),
+            onPressed: _showOriginal,
+          ),
+        ],
       ),
       body: ListenableBuilder(
         listenable: Listenable.merge([_logic, _timerService]),
@@ -155,37 +215,66 @@ class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: _logic.gridSize,
-                          crossAxisSpacing: 6,
-                          mainAxisSpacing: 6,
+                          // Ghép xong: các mảnh khít lại thành tranh liền
+                          crossAxisSpacing: _logic.isCompleted ? 0 : 3,
+                          mainAxisSpacing: _logic.isCompleted ? 0 : 3,
                         ),
                         itemCount: _logic.pieces.length,
                         itemBuilder: (context, index) {
                           final piece = _logic.pieces[index];
                           final isSelected = _logic.selectedPieceIndex == index;
+                          final done = _logic.isCompleted;
 
                           return GestureDetector(
                             onTap: () => _logic.selectOrSwapPiece(index),
                             child: Container(
-                              decoration: BoxDecoration(
-                                color: piece.isCorrect
-                                    ? Colors.lightGreen.shade400
-                                    : Colors.orange.shade300,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Colors.red
-                                      : (piece.isCorrect ? Colors.green : Colors.deepOrange),
-                                  width: isSelected ? 3 : 1.5,
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Piece #${piece.id}',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: isSelected ? Colors.red.shade900 : Colors.black87,
-                                  fontWeight:
-                                      isSelected ? FontWeight.bold : FontWeight.normal,
+                              foregroundDecoration: done
+                                  ? null
+                                  : BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.red
+                                            : (piece.isCorrect
+                                                ? Colors.lightGreenAccent.shade400
+                                                : Colors.white70),
+                                        width: isSelected ? 3.5 : (piece.isCorrect ? 2.5 : 1),
+                                      ),
+                                    ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(done ? 0 : 6),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    JigsawPieceImage(
+                                      picture: _picture,
+                                      row: piece.correctRow,
+                                      col: piece.correctCol,
+                                      gridSize: _logic.gridSize,
+                                    ),
+                                    if (isSelected)
+                                      const ColoredBox(color: Color(0x33FF5252)),
+                                    if (_showNumbers && !done)
+                                      Positioned(
+                                        left: 4,
+                                        top: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '${piece.id}',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
