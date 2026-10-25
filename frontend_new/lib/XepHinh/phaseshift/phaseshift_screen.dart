@@ -6,6 +6,7 @@ import 'engine/reaction_engine.dart';
 import 'services/phaseshift_score_service.dart';
 import 'widgets/game_board.dart';
 import 'widgets/control_panel.dart';
+import 'widgets/phaseshift_rules.dart';
 import '../shared/models/difficulty.dart';
 import '../shared/services/timer_service.dart';
 
@@ -259,6 +260,21 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
     }
   }
 
+  /// Xem luật: tạm dừng trong lúc đọc, đóng bảng thì chơi tiếp
+  /// (nếu trước đó đã tự tạm dừng thì vẫn giữ trạng thái dừng).
+  Future<void> _showRules() async {
+    final wasRunning = !_isGameOver && !_isPaused;
+    if (wasRunning) {
+      setState(() => _isPaused = true);
+      _stopTimers();
+    }
+    await showPhaseShiftRules(context);
+    if (wasRunning && mounted && !_isGameOver) {
+      setState(() => _isPaused = false);
+      _startTimers();
+    }
+  }
+
   void _showPauseDialog() {
     showDialog(
       context: context,
@@ -425,6 +441,11 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
         title: Text('PhaseShift - ${widget.difficulty.displayName}'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: _showRules,
+            tooltip: 'Luật chơi',
+          ),
           IconButton(
             icon: const Icon(Icons.pause_circle_outline_rounded),
             onPressed: _togglePause,

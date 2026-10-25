@@ -3,6 +3,7 @@ import 'shared/models/difficulty.dart';
 import 'sliding_puzzle/sliding_puzzle_screen.dart';
 import 'jigsaw_puzzle/jigsaw_puzzle_screen.dart';
 import 'phaseshift/phaseshift_screen.dart';
+import 'phaseshift/widgets/phaseshift_rules.dart';
 
 enum GameMode { sliding, jigsaw, phaseShift }
 
@@ -130,6 +131,21 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                       _enableTimeLimit = val;
                     });
                   },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => showPhaseShiftRules(context),
+                  icon: const Icon(Icons.menu_book_rounded),
+                  label: const Text('Luật chơi PhaseShift'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
