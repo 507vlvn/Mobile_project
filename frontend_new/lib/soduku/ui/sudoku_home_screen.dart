@@ -4,6 +4,7 @@ import '../../auth/auth_controller.dart';
 import '../../core/network/api_client.dart';
 import '../logic/sudoku_controller.dart';
 import '../logic/sudoku_models.dart';
+import '../logic/sudoku_stats_manager.dart';
 import 'sudoku_learning_screen.dart';
 import 'sudoku_screen.dart';
 import 'sudoku_stats_view.dart';
@@ -44,6 +45,8 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
 
         final api = context.read<ApiClient>();
         _controller.onUserChanged(auth.currentUser?.userId);
+        SudokuStatsManager.instance.switchUser(auth.currentUser?.userId);
+        SudokuStatsManager.instance.syncWithServer();
         final saved = await api.getSudokuSavedGame(mode: 'CLASSIC');
         if (saved != null && mounted) {
           _controller.restoreFromSavedGame(saved);
@@ -237,7 +240,7 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                     ? SudokuStatsView(
                         embedded: true,
                         onBack: () => setState(() => _selectedNavIndex = 0),
-                        showBackButton: false,
+                        showBackButton: true,
                       )
                     : Column(
                         children: [
@@ -690,6 +693,9 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
           _openLearningMode();
         } else {
           setState(() => _selectedNavIndex = index);
+          if (index == 2) {
+            SudokuStatsManager.instance.syncWithServer();
+          }
         }
       },
       borderRadius: BorderRadius.circular(12),

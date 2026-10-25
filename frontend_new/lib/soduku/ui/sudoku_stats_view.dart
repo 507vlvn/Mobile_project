@@ -9,7 +9,7 @@ class SudokuStatsView extends StatefulWidget {
   const SudokuStatsView({
     super.key,
     this.onBack,
-    this.showBackButton = false,
+    this.showBackButton = true,
     this.embedded = false,
   });
 
@@ -61,10 +61,16 @@ class _SudokuStatsViewState extends State<SudokuStatsView> {
                 children: [
                   if (widget.showBackButton)
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
                       color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                       tooltip: 'Quay lại',
-                      onPressed: widget.onBack,
+                      onPressed: () {
+                        if (widget.onBack != null) {
+                          widget.onBack!();
+                        } else if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                      },
                     )
                   else
                     const SizedBox(width: 48, height: 48),
