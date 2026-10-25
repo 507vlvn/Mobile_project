@@ -75,6 +75,8 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
   }
 
   void _showDifficultyPicker() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -84,9 +86,9 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -98,27 +100,25 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
+                    color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Center(
+              Center(
                 child: Text(
                   'Chọn Độ Khó Sudoku',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-
-
-              // 2. Chế độ Cổ điển
+              // Chế độ Cổ điển
               for (final diff in SudokuDifficulty.values) ...[
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10.0),
@@ -131,12 +131,15 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                         _startNewGame(diff);
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1E293B),
-                        side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                        foregroundColor: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          width: 1.5,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        backgroundColor: const Color(0xFFF8FAFC),
+                        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -152,8 +155,8 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: diff == SudokuDifficulty.nightmare
-                                  ? const Color(0xFFFEE2E2)
-                                  : const Color(0xFFEEF2FF),
+                                  ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                                  : (isDark ? const Color(0xFF1E3A8A) : const Color(0xFFEEF2FF)),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -162,8 +165,8 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: diff == SudokuDifficulty.nightmare
-                                    ? const Color(0xFFDC2626)
-                                    : const Color(0xFF4F46E5),
+                                    ? (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626))
+                                    : (isDark ? const Color(0xFF93C5FD) : const Color(0xFF4F46E5)),
                               ),
                             ),
                           ),
@@ -184,30 +187,45 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
   Widget build(BuildContext context) {
     final ongoingTime = _controller.elapsedFormatted;
     final ongoingDifficulty = _controller.difficulty.label;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FBFE),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF9FBFE),
       body: SafeArea(
         child: Column(
           children: [
-            // Thanh công cụ trên cùng (Cúp giải thưởng, Cài đặt)
+            // Thanh công cụ trên cùng (Mũi tên quay lại, Cúp giải thưởng, Cài đặt)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Mũi tên quay lại
                   IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.emoji_events_outlined, size: 28),
-                    color: const Color(0xFF2563EB),
-                    tooltip: 'Giải đấu',
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
+                    color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                    tooltip: 'Quay lại',
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                    },
                   ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.settings_outlined, size: 28),
-                    color: const Color(0xFF2563EB),
-                    tooltip: 'Cài đặt',
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.emoji_events_outlined, size: 26),
+                        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                        tooltip: 'Giải đấu',
+                      ),
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.settings_outlined, size: 26),
+                        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                        tooltip: 'Cài đặt',
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -253,28 +271,28 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                     const SizedBox(height: 36),
 
                     // Tiêu đề App (Killer Sudoku / Sudoku Classic)
-                    const Text(
+                    Text(
                       'Sudoku Classic',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
                         letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'by GameHub',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
                     ),
 
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 44),
 
                     // Nút 1: Tiếp tục Trò chơi (Pill Blue)
                     Container(
@@ -341,17 +359,20 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Nút 2: Trò chơi Mới (Pill White)
+                    // Nút 2: Trò chơi Mới (Pill Adaptive)
                     Container(
                       width: double.infinity,
                       height: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(32),
-                        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          width: 1.5,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
+                            color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.04),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -362,13 +383,13 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                         child: InkWell(
                           onTap: _showDifficultyPicker,
                           borderRadius: BorderRadius.circular(32),
-                          child: const Center(
+                          child: Center(
                             child: Text(
                               'Trò chơi Mới',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF2563EB),
+                                color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
                               ),
                             ),
                           ),
@@ -473,7 +494,7 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
             ),
 
             // Thanh điều hướng đáy (Chính, Thử thách, Thống kê)
-            _buildBottomNav(),
+            _buildBottomNav(isDark),
           ],
         ),
       ),
@@ -593,27 +614,34 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
     );
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(bool isDark) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.2)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+            width: 1.2,
+          ),
+        ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(0, Icons.home_rounded, 'Chính'),
-          _buildNavItem(1, Icons.calendar_month_outlined, 'Thử thách'),
-          _buildNavItem(2, Icons.bar_chart_rounded, 'Thống kê'),
+          _buildNavItem(0, Icons.home_rounded, 'Chính', isDark),
+          _buildNavItem(1, Icons.calendar_month_outlined, 'Thử thách', isDark),
+          _buildNavItem(2, Icons.bar_chart_rounded, 'Thống kê', isDark),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label, bool isDark) {
     final isSelected = _selectedNavIndex == index;
-    final color = isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8);
+    final color = isSelected
+        ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB))
+        : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8));
 
     return InkWell(
       onTap: () {

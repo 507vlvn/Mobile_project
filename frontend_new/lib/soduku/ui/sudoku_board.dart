@@ -9,6 +9,8 @@ class SudokuBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // Kích thước vuông dựa trên chiều rộng khả dụng
@@ -19,16 +21,21 @@ class SudokuBoard extends StatelessWidget {
           width: boardSize,
           height: boardSize,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.35)
+                    : Colors.black.withValues(alpha: 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: const Color(0xFF1E293B), width: 2.5),
+            border: Border.all(
+              color: isDark ? const Color(0xFF475569) : const Color(0xFF1E293B),
+              width: 2.5,
+            ),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(9.5),
@@ -42,7 +49,7 @@ class SudokuBoard extends StatelessWidget {
                       top: r * cellSize,
                       width: cellSize,
                       height: cellSize,
-                      child: _buildCell(context, r, c, cellSize),
+                      child: _buildCell(context, r, c, cellSize, isDark),
                     ),
 
                 // Đường kẻ dày phân tách các khối 3x3
@@ -53,7 +60,9 @@ class SudokuBoard extends StatelessWidget {
                     top: 0,
                     bottom: 0,
                     width: 2.5,
-                    child: Container(color: const Color(0xFF1E293B)),
+                    child: Container(
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF1E293B),
+                    ),
                   ),
                   // Kẻ ngang
                   Positioned(
@@ -61,7 +70,9 @@ class SudokuBoard extends StatelessWidget {
                     left: 0,
                     right: 0,
                     height: 2.5,
-                    child: Container(color: const Color(0xFF1E293B)),
+                    child: Container(
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF1E293B),
+                    ),
                   ),
                 ],
               ],
@@ -72,7 +83,7 @@ class SudokuBoard extends StatelessWidget {
     );
   }
 
-  Widget _buildCell(BuildContext context, int row, int col, double cellSize) {
+  Widget _buildCell(BuildContext context, int row, int col, double cellSize, bool isDark) {
     final cell = controller.board[row][col];
     final isSelected = controller.selectedRow == row && controller.selectedCol == col;
     final selectedCell = controller.selectedCell;
@@ -90,17 +101,27 @@ class SudokuBoard extends StatelessWidget {
         selectedCell.value != 0 &&
         cell.value == selectedCell.value;
 
-    // Màu nền ô
+    // Màu nền ô theo theme
     Color cellBgColor = Colors.transparent;
     if (cell.isError) {
-      cellBgColor = const Color(0xFFFFE4E6); // Đỏ nhạt khi sai
+      cellBgColor = isDark
+          ? const Color(0xFF7F1D1D).withValues(alpha: 0.65)
+          : const Color(0xFFFFE4E6);
     } else if (isSelected) {
-      cellBgColor = const Color(0xFFC7D2FE); // Xanh đậm ô được chọn
+      cellBgColor = isDark
+          ? const Color(0xFF2563EB).withValues(alpha: 0.5)
+          : const Color(0xFFC7D2FE);
     } else if (hasSameValue) {
-      cellBgColor = const Color(0xFFDDD6FE); // Tím nhạt các số trùng nhau
+      cellBgColor = isDark
+          ? const Color(0xFF4338CA).withValues(alpha: 0.45)
+          : const Color(0xFFDDD6FE);
     } else if (isRelated) {
-      cellBgColor = const Color(0xFFF1F5F9); // Xám xanh nhạt hàng/cột/khối
+      cellBgColor = isDark
+          ? const Color(0xFF334155).withValues(alpha: 0.45)
+          : const Color(0xFFF1F5F9);
     }
+
+    final thinBorderColor = isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1);
 
     return GestureDetector(
       onTap: () => controller.selectCell(row, col),
@@ -109,36 +130,36 @@ class SudokuBoard extends StatelessWidget {
           color: cellBgColor,
           border: Border(
             right: BorderSide(
-              color: (col % 3 == 2) ? Colors.transparent : const Color(0xFFCBD5E1),
+              color: (col % 3 == 2) ? Colors.transparent : thinBorderColor,
               width: 0.8,
             ),
             bottom: BorderSide(
-              color: (row % 3 == 2) ? Colors.transparent : const Color(0xFFCBD5E1),
+              color: (row % 3 == 2) ? Colors.transparent : thinBorderColor,
               width: 0.8,
             ),
           ),
         ),
         child: Center(
           child: cell.value != 0
-              ? _buildCellValue(cell, cellSize)
-              : _buildCellNotes(cell),
+              ? _buildCellValue(cell, cellSize, isDark)
+              : _buildCellNotes(cell, isDark),
         ),
       ),
     );
   }
 
-  Widget _buildCellValue(SudokuCell cell, double cellSize) {
+  Widget _buildCellValue(SudokuCell cell, double cellSize, bool isDark) {
     Color textColor;
     FontWeight fontWeight;
 
     if (cell.isError) {
-      textColor = const Color(0xFFDC2626); // Đỏ
+      textColor = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
       fontWeight = FontWeight.w700;
     } else if (cell.isGiven) {
-      textColor = const Color(0xFF0F172A); // Đen đậm (số đề bài)
+      textColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
       fontWeight = FontWeight.w800;
     } else {
-      textColor = const Color(0xFF2563EB); // Xanh dương (số người chơi điền)
+      textColor = isDark ? const Color(0xFF38BDF8) : const Color(0xFF2563EB);
       fontWeight = FontWeight.w600;
     }
 
@@ -152,7 +173,7 @@ class SudokuBoard extends StatelessWidget {
     );
   }
 
-  Widget _buildCellNotes(SudokuCell cell) {
+  Widget _buildCellNotes(SudokuCell cell, bool isDark) {
     if (cell.notes.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -174,10 +195,10 @@ class SudokuBoard extends StatelessWidget {
                       child: Center(
                         child: Text(
                           hasNote ? '$num' : '',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                             height: 1.0,
                           ),
                         ),
