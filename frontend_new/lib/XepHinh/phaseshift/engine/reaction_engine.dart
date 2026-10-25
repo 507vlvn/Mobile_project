@@ -217,40 +217,50 @@ class ReactionEngine {
     return _applyGravityAndWater(board, rows, cols);
   }
 
+  /// Cho các khối ổn định hẳn: lặp tới khi không còn khối nào di chuyển.
+  /// - Mọi khối (kể cả Nước) rơi thẳng xuống tới khi chạm khối khác hoặc đáy.
+  /// - Nước đang đứng trên một khối còn chảy sang ô bên cạnh nếu ô đó trống VÀ
+  ///   ô ngay dưới nó cũng trống (chảy khỏi mép xuống chỗ thấp hơn); nằm trên
+  ///   mặt phẳng thì đứng yên.
+  /// Trước đây mỗi lần gọi chỉ cho khối rơi 1 ô, nên sau phản ứng các chồng khối
+  /// có thể bị lơ lửng giữa không trung.
   static bool _applyGravityAndWater(List<List<ElementBlock?>> board, int rows, int cols) {
     bool movedAny = false;
+    bool moved = true;
+    // Mỗi lượt có ít nhất một khối tiến xuống thấp hơn nên luôn dừng; giới hạn để chắc chắn.
+    int guard = rows * cols * 2;
 
-    for (int r = rows - 2; r >= 0; r--) {
-      for (int c = 0; c < cols; c++) {
-        final block = board[r][c];
-        if (block != null && block.type != ElementType.water) {
-          if (board[r + 1][c] == null) {
-            board[r + 1][c] = block;
+    while (moved && guard-- > 0) {
+      moved = false;
+
+      // 1. Rơi thẳng (duyệt từ dưới lên để cả chồng cùng tụt xuống)
+      for (int r = rows - 2; r >= 0; r--) {
+        for (int c = 0; c < cols; c++) {
+          if (board[r][c] != null && board[r + 1][c] == null) {
+            board[r + 1][c] = board[r][c];
             board[r][c] = null;
-            movedAny = true;
+            moved = true;
           }
         }
       }
-    }
+      if (moved) {
+        movedAny = true;
+        continue;
+      }
 
-    for (int r = rows - 1; r >= 0; r--) {
-      for (int c = 0; c < cols; c++) {
-        final block = board[r][c];
-        if (block?.type == ElementType.water) {
-          if (r + 1 < rows && board[r + 1][c] == null) {
-            board[r + 1][c] = block;
-            board[r][c] = null;
-            movedAny = true;
-          } else {
-            List<int> directions = [-1, 1]..shuffle(Random());
-            for (int dir in directions) {
-              int nc = c + dir;
-              if (nc >= 0 && nc < cols && board[r][nc] == null) {
-                board[r][nc] = block;
-                board[r][c] = null;
-                movedAny = true;
-                break;
-              }
+      // 2. Nước chảy khỏi mép xuống chỗ thấp hơn
+      for (int r = rows - 2; r >= 0 && !moved; r--) {
+        for (int c = 0; c < cols && !moved; c++) {
+          if (board[r][c]?.type != ElementType.water) continue;
+          final directions = [-1, 1]..shuffle(Random());
+          for (final dir in directions) {
+            final nc = c + dir;
+            if (nc >= 0 && nc < cols && board[r][nc] == null && board[r + 1][nc] == null) {
+              board[r][nc] = board[r][c];
+              board[r][c] = null;
+              moved = true;
+              movedAny = true;
+              break;
             }
           }
         }

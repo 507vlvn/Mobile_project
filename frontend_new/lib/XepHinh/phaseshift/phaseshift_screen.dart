@@ -159,6 +159,9 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
     _activeBlock = null;
     _activePosition = null;
 
+    // Nước vừa đặt lên mép một khối thì chảy xuống chỗ thấp hơn trước khi xét phản ứng.
+    ReactionEngine.applyPhysicsTick(_board, _rows, _cols);
+
     final result = ReactionEngine.processReactions(
       grid: _board,
       rows: _rows,

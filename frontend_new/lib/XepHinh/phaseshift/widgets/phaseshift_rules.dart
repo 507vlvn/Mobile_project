@@ -67,7 +67,7 @@ class _RulesContent extends StatelessWidget {
 
         const _Section('🧱 Các khối nguyên tố'),
         _Element(_b(ElementType.fire), 'Bị Nước dập tắt; làm tan Băng thành Nước.'),
-        _Element(_b(ElementType.water), 'Dập Lửa; bị Băng / Lạnh đóng băng. Có thể chảy sang ô trống bên cạnh.'),
+        _Element(_b(ElementType.water), 'Dập Lửa; bị Băng / Lạnh đóng băng. Đặt trên mép khối thì chảy xuống chỗ trống thấp hơn bên cạnh.'),
         _Element(_b(ElementType.ice), 'Đóng băng Nước bên cạnh thành Băng; bị Lửa làm tan.'),
         _Element(_b(ElementType.stone), 'Rất cứng, chỉ Axit mới hòa tan được.'),
         _Element(_b(ElementType.acid), 'Hòa tan Đá (cả hai cùng biến mất).'),
@@ -92,7 +92,7 @@ class _RulesContent extends StatelessWidget {
         ),
 
         const _Section('🔥 Combo & dây chuyền'),
-        const _Bullet('Sau mỗi phản ứng, khối phía trên rơi xuống lấp chỗ trống, Nước có thể chảy sang ngang. '
+        const _Bullet('Sau mỗi phản ứng, các khối phía trên rơi hẳn xuống lấp chỗ trống (không có khối lơ lửng), Nước chảy xuống chỗ thấp hơn. '
             'Nếu lại có cặp phản ứng, phản ứng tiếp tục ngay (dây chuyền).'),
         const _Bullet('Mỗi phản ứng tăng hệ số combo thêm 1. Combo được giữ suốt ván, nên càng về sau mỗi phản ứng càng nhiều điểm.'),
 
