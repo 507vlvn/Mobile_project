@@ -457,6 +457,110 @@ namespace GameHub.Api.Migrations
                     b.ToTable("PlayerRatings", (string)null);
                 });
 
+            modelBuilder.Entity("GameHub.Api.model.SudokuProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BestTimeSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("best_time_seconds");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("completed_at");
+
+                    b.Property<bool>("IsUnlocked")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_unlocked");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int")
+                        .HasColumnName("level");
+
+                    b.Property<int?>("Mistakes")
+                        .HasColumnType("int")
+                        .HasColumnName("mistakes");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Level")
+                        .IsUnique();
+
+                    b.ToTable("SudokuProgresses", (string)null);
+                });
+
+            modelBuilder.Entity("GameHub.Api.model.SudokuSavedGame", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoardCurrent")
+                        .IsRequired()
+                        .HasMaxLength(81)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(81)")
+                        .HasColumnName("board_current");
+
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("int")
+                        .HasColumnName("difficulty");
+
+                    b.Property<int>("ElapsedSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("elapsed_seconds");
+
+                    b.Property<string>("GameMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("game_mode");
+
+                    b.Property<int?>("Level")
+                        .HasColumnType("int")
+                        .HasColumnName("level");
+
+                    b.Property<int>("Mistakes")
+                        .HasColumnType("int")
+                        .HasColumnName("mistakes");
+
+                    b.Property<string>("NotesData")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("notes_data");
+
+                    b.Property<long>("Seed")
+                        .HasColumnType("bigint")
+                        .HasColumnName("seed");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "GameMode")
+                        .IsUnique();
+
+                    b.ToTable("SudokuSavedGames", (string)null);
+                });
+
             modelBuilder.Entity("GameHub.Api.model.User", b =>
                 {
                     b.Property<int>("UserId")
@@ -682,6 +786,28 @@ namespace GameHub.Api.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GameHub.Api.model.SudokuProgress", b =>
+                {
+                    b.HasOne("GameHub.Api.model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GameHub.Api.model.SudokuSavedGame", b =>
+                {
+                    b.HasOne("GameHub.Api.model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GameHub.Api.model.Game", b =>

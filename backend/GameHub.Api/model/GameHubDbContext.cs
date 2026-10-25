@@ -13,6 +13,8 @@ public class GameHubDbContext(DbContextOptions<GameHubDbContext> options) : DbCo
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<PlayerRating> PlayerRatings => Set<PlayerRating>();
     public DbSet<GameMatch> Matches => Set<GameMatch>();
+    public DbSet<SudokuProgress> SudokuProgresses => Set<SudokuProgress>();
+    public DbSet<SudokuSavedGame> SudokuSavedGames => Set<SudokuSavedGame>();
 
     // Trả về false nếu lưu bị trùng khoá hoặc lỗi ràng buộc dữ liệu.
     public async Task<bool> TrySaveAsync(CancellationToken ct = default)
@@ -178,6 +180,38 @@ public class GameHubDbContext(DbContextOptions<GameHubDbContext> options) : DbCo
             e.Property(x => x.SentAt).HasColumnName("sent_at");
             e.HasOne<User>().WithMany().HasForeignKey(x => x.SenderId).OnDelete(DeleteBehavior.NoAction);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.ReceiverId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        b.Entity<SudokuProgress>(e =>
+        {
+            e.ToTable("SudokuProgresses").HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.Level).HasColumnName("level");
+            e.Property(x => x.IsUnlocked).HasColumnName("is_unlocked");
+            e.Property(x => x.BestTimeSeconds).HasColumnName("best_time_seconds");
+            e.Property(x => x.Mistakes).HasColumnName("mistakes");
+            e.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.UserId, x.Level }).IsUnique();
+        });
+
+        b.Entity<SudokuSavedGame>(e =>
+        {
+            e.ToTable("SudokuSavedGames").HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.GameMode).HasColumnName("game_mode").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.Level).HasColumnName("level");
+            e.Property(x => x.Difficulty).HasColumnName("difficulty");
+            e.Property(x => x.Seed).HasColumnName("seed");
+            e.Property(x => x.BoardCurrent).HasColumnName("board_current").HasMaxLength(81).IsUnicode(false);
+            e.Property(x => x.NotesData).HasColumnName("notes_data");
+            e.Property(x => x.Mistakes).HasColumnName("mistakes");
+            e.Property(x => x.ElapsedSeconds).HasColumnName("elapsed_seconds");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.UserId, x.GameMode }).IsUnique();
         });
     }
 }
