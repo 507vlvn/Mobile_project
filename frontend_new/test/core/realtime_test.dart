@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,6 +9,8 @@ import 'package:frontend_new/core/realtime/hub_gateway.dart';
 import 'package:frontend_new/core/realtime/realtime_service.dart';
 import 'package:frontend_new/friends/chat_controller.dart';
 import 'package:frontend_new/friends/friends_controller.dart';
+
+import '../support/fake_realtime.dart';
 
 /// Hub giả: điều khiển được start thành công/thất bại và đẩy sự kiện xuống.
 class _FakeGateway implements HubGateway {
@@ -32,8 +32,14 @@ class _FakeGateway implements HubGateway {
   @override
   Future<void> stop() async => stops++;
 
+  final invoked = <String>[];
+  Object? invokeResult;
+
   @override
-  Future<Object?> invoke(String method, List<Object> args) async => null;
+  Future<Object?> invoke(String method, List<Object> args) async {
+    invoked.add('$method ${args.join(' ')}'.trim());
+    return invokeResult;
+  }
 
   @override
   void on(String method, void Function(List<Object?>? args) handler) =>
@@ -44,36 +50,6 @@ class _FakeGateway implements HubGateway {
 
   void push(String method, List<Object?> args) => _handlers[method]!(args);
   void drop() => _onClosed?.call(Exception('lost'));
-}
-
-/// RealtimeService giả cho controller.
-class _FakeRealtime extends ChangeNotifier implements RealtimeService {
-  bool connected = true;
-  final presenceCtl = StreamController<PresenceEvent>.broadcast();
-  final requestsCtl = StreamController<void>.broadcast();
-  final acceptedCtl = StreamController<void>.broadcast();
-  final messagesCtl = StreamController<ChatMessage>.broadcast();
-  final reconnectedCtl = StreamController<void>.broadcast();
-
-  @override
-  RealtimeStatus get status =>
-      connected ? RealtimeStatus.connected : RealtimeStatus.disconnected;
-  @override
-  bool get isConnected => connected;
-  @override
-  Stream<void> get reconnected => reconnectedCtl.stream;
-  @override
-  Stream<PresenceEvent> get presence => presenceCtl.stream;
-  @override
-  Stream<void> get friendRequests => requestsCtl.stream;
-  @override
-  Stream<void> get friendAccepted => acceptedCtl.stream;
-  @override
-  Stream<ChatMessage> get messages => messagesCtl.stream;
-  @override
-  Future<void> connect() async {}
-  @override
-  Future<void> disconnect() async {}
 }
 
 /// ApiClient giả: chỉ các hàm bạn bè / tin nhắn mà controller gọi.
@@ -205,7 +181,7 @@ void main() {
   group('FriendsController với realtime', () {
     test('sự kiện Presence đổi trạng thái online ngay, không gọi lại API', () async {
       final api = _Api();
-      final rt = _FakeRealtime();
+      final rt = FakeRealtime();
       final c = FriendsController(api: api, realtime: rt);
       await c.load();
       expect(c.friends.single.presence, PresenceStatus.offline);
@@ -221,7 +197,7 @@ void main() {
 
     test('có lời mời mới thì tải lại danh sách', () async {
       final api = _Api();
-      final rt = _FakeRealtime();
+      final rt = FakeRealtime();
       final c = FriendsController(api: api, realtime: rt);
       await c.load();
       final calls = api.friendCalls;
@@ -236,7 +212,7 @@ void main() {
   group('ChatController với realtime', () {
     test('nhận tin của đúng cuộc trò chuyện và đánh dấu đã đọc', () async {
       final api = _Api();
-      final rt = _FakeRealtime();
+      final rt = FakeRealtime();
       final c = ChatController(api: api, myId: 7, partnerId: 9, realtime: rt);
       await c.start();
 

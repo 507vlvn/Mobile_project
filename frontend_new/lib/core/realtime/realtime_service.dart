@@ -8,8 +8,10 @@ import '../models/presence.dart';
 import '../network/models.dart';
 import '../network/token_storage.dart';
 import 'hub_gateway.dart';
+import 'match_models.dart';
 
 export 'hub_gateway.dart' show RealtimeException, hubErrorMessage, kConnectionLostMessage;
+export 'match_models.dart';
 
 /// [RealtimeService] nếu app có cung cấp (test / ảnh chụp có thể không có).
 RealtimeService? maybeRealtimeOf(BuildContext context) {
@@ -47,8 +49,9 @@ class PresenceEvent {
 
 /// Giao diện realtime mà widget/controller phụ thuộc — test dùng bản giả.
 ///
-/// Hiện chỉ gồm phần Bạn bè (trạng thái online, lời mời kết bạn, tin nhắn).
-/// Sự kiện đấu trận (hàng chờ, mời đấu, nước đi...) thêm vào đây khi làm Đối kháng.
+/// Gồm phần Bạn bè (trạng thái online, lời mời kết bạn, tin nhắn) và phần
+/// Đối kháng (hàng chờ, mời đấu, trận Caro theo lượt, trận đua Xếp số).
+/// Hợp đồng: backend/GameHub.Api/Services/GameHub.cs + MatchService.cs.
 abstract interface class RealtimeService implements Listenable {
   RealtimeStatus get status;
   bool get isConnected;
@@ -66,9 +69,41 @@ abstract interface class RealtimeService implements Listenable {
   Stream<void> get friendAccepted;
   Stream<ChatMessage> get messages;
 
+  // ---- đối kháng: server -> client ----
+  Stream<QueueStatusEvent> get queueStatus;
+  Stream<InviteReceivedEvent> get invitesReceived;
+  Stream<InviteResultEvent> get inviteResults;
+  Stream<MatchInfo> get matchStarted;
+  Stream<MatchInfo> get matchState;
+  Stream<OpponentProgressEvent> get opponentProgress;
+  Stream<OpponentConnectionEvent> get opponentConnection;
+  Stream<MatchSignalEvent> get drawOffered;
+  Stream<DrawRespondedEvent> get drawResponded;
+  Stream<MatchSignalEvent> get rematchRequested;
+  Stream<MatchSignalEvent> get quickChats;
+  Stream<MatchEndedEvent> get matchEnded;
+
   // ---- vòng đời ----
   Future<void> connect();
   Future<void> disconnect();
+
+  // ---- đối kháng: client -> server ----
+  // Lỗi của hub / mất kết nối ném [RealtimeException] (thông điệp hiển thị được).
+  Future<void> queueJoin(String gameCode, int difficulty);
+  Future<void> queueLeave();
+
+  /// Trả về inviteId.
+  Future<String> invite(int friendId, String gameCode, int difficulty);
+  Future<void> respondInvite(String inviteId, bool accept);
+  Future<void> caroMove(String matchId, int row, int col);
+  Future<void> raceProgress(String matchId, int percent);
+  Future<void> raceFinish(String matchId, int timeMs, int mistakes);
+  Future<void> resign(String matchId);
+  Future<void> offerDraw(String matchId);
+  Future<void> respondDraw(String matchId, bool accept);
+  Future<void> rematch(String matchId);
+  Future<void> quickChat(String matchId, String code);
+  Future<void> rejoin(String matchId);
 }
 
 /// Dãy chờ giữa các lần thử kết nối lại: 0, 2, 5, 10, 30 giây rồi lặp lại 30 giây.
@@ -114,6 +149,18 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
   final _friendRequests = StreamController<void>.broadcast();
   final _friendAccepted = StreamController<void>.broadcast();
   final _messages = StreamController<ChatMessage>.broadcast();
+  final _queueStatus = StreamController<QueueStatusEvent>.broadcast();
+  final _invitesReceived = StreamController<InviteReceivedEvent>.broadcast();
+  final _inviteResults = StreamController<InviteResultEvent>.broadcast();
+  final _matchStarted = StreamController<MatchInfo>.broadcast();
+  final _matchState = StreamController<MatchInfo>.broadcast();
+  final _opponentProgress = StreamController<OpponentProgressEvent>.broadcast();
+  final _opponentConnection = StreamController<OpponentConnectionEvent>.broadcast();
+  final _drawOffered = StreamController<MatchSignalEvent>.broadcast();
+  final _drawResponded = StreamController<DrawRespondedEvent>.broadcast();
+  final _rematchRequested = StreamController<MatchSignalEvent>.broadcast();
+  final _quickChats = StreamController<MatchSignalEvent>.broadcast();
+  final _matchEnded = StreamController<MatchEndedEvent>.broadcast();
 
   @override
   RealtimeStatus get status => _status;
@@ -130,6 +177,30 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
   Stream<void> get friendAccepted => _friendAccepted.stream;
   @override
   Stream<ChatMessage> get messages => _messages.stream;
+  @override
+  Stream<QueueStatusEvent> get queueStatus => _queueStatus.stream;
+  @override
+  Stream<InviteReceivedEvent> get invitesReceived => _invitesReceived.stream;
+  @override
+  Stream<InviteResultEvent> get inviteResults => _inviteResults.stream;
+  @override
+  Stream<MatchInfo> get matchStarted => _matchStarted.stream;
+  @override
+  Stream<MatchInfo> get matchState => _matchState.stream;
+  @override
+  Stream<OpponentProgressEvent> get opponentProgress => _opponentProgress.stream;
+  @override
+  Stream<OpponentConnectionEvent> get opponentConnection => _opponentConnection.stream;
+  @override
+  Stream<MatchSignalEvent> get drawOffered => _drawOffered.stream;
+  @override
+  Stream<DrawRespondedEvent> get drawResponded => _drawResponded.stream;
+  @override
+  Stream<MatchSignalEvent> get rematchRequested => _rematchRequested.stream;
+  @override
+  Stream<MatchSignalEvent> get quickChats => _quickChats.stream;
+  @override
+  Stream<MatchEndedEvent> get matchEnded => _matchEnded.stream;
 
   // ---------------------------------------------------------- nối dây
 
@@ -162,6 +233,19 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
             ? ChatMessage.fromJson((a[0] as Map).cast<String, dynamic>())
             : null,
         _messages);
+
+    listen('QueueStatus', QueueStatusEvent.parse, _queueStatus);
+    listen('InviteReceived', InviteReceivedEvent.parse, _invitesReceived);
+    listen('InviteResult', InviteResultEvent.parse, _inviteResults);
+    listen('MatchStarted', MatchInfo.parse, _matchStarted);
+    listen('MatchState', MatchInfo.parse, _matchState);
+    listen('OpponentProgress', OpponentProgressEvent.parse, _opponentProgress);
+    listen('OpponentConnection', OpponentConnectionEvent.parse, _opponentConnection);
+    listen('DrawOffered', MatchSignalEvent.parse, _drawOffered);
+    listen('DrawResponded', DrawRespondedEvent.parse, _drawResponded);
+    listen('RematchRequested', MatchSignalEvent.parse, _rematchRequested);
+    listen('QuickChat', MatchSignalEvent.parse, _quickChats);
+    listen('MatchEnded', MatchEndedEvent.parse, _matchEnded);
 
     _gateway.setOnClosed((_) {
       if (_disposed || !_wanted) return;
@@ -235,6 +319,55 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
     }
   }
 
+  // ---------------------------------------------------------- gọi lên server
+
+  Future<Object?> _call(String method, List<Object> args) async {
+    if (!isConnected) {
+      throw const RealtimeException('Chưa kết nối tới máy chủ. Vui lòng thử lại sau giây lát.');
+    }
+    try {
+      return await _gateway.invoke(method, args);
+    } on RealtimeException {
+      rethrow;
+    } catch (e) {
+      throw RealtimeException(hubErrorMessage(e));
+    }
+  }
+
+  @override
+  Future<void> queueJoin(String gameCode, int difficulty) =>
+      _call('QueueJoin', [gameCode, difficulty]);
+  @override
+  Future<void> queueLeave() => _call('QueueLeave', const []);
+  @override
+  Future<String> invite(int friendId, String gameCode, int difficulty) async =>
+      (await _call('Invite', [friendId, gameCode, difficulty]))?.toString() ?? '';
+  @override
+  Future<void> respondInvite(String inviteId, bool accept) =>
+      _call('RespondInvite', [inviteId, accept]);
+  @override
+  Future<void> caroMove(String matchId, int row, int col) =>
+      _call('CaroMove', [matchId, row, col]);
+  @override
+  Future<void> raceProgress(String matchId, int percent) =>
+      _call('RaceProgress', [matchId, percent]);
+  @override
+  Future<void> raceFinish(String matchId, int timeMs, int mistakes) =>
+      _call('RaceFinish', [matchId, timeMs, mistakes]);
+  @override
+  Future<void> resign(String matchId) => _call('Resign', [matchId]);
+  @override
+  Future<void> offerDraw(String matchId) => _call('OfferDraw', [matchId]);
+  @override
+  Future<void> respondDraw(String matchId, bool accept) =>
+      _call('RespondDraw', [matchId, accept]);
+  @override
+  Future<void> rematch(String matchId) => _call('Rematch', [matchId]);
+  @override
+  Future<void> quickChat(String matchId, String code) => _call('QuickChat', [matchId, code]);
+  @override
+  Future<void> rejoin(String matchId) => _call('Rejoin', [matchId]);
+
   @override
   void dispose() {
     _disposed = true;
@@ -246,6 +379,18 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
       _friendRequests,
       _friendAccepted,
       _messages,
+      _queueStatus,
+      _invitesReceived,
+      _inviteResults,
+      _matchStarted,
+      _matchState,
+      _opponentProgress,
+      _opponentConnection,
+      _drawOffered,
+      _drawResponded,
+      _rematchRequested,
+      _quickChats,
+      _matchEnded,
     ]) {
       unawaited(c.close());
     }
