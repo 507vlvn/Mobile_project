@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -191,5 +191,19 @@ void main() {
       CaroAiRequest(cells: b, difficulty: Difficulty.hard, budgetMs: 300),
     );
     expect([caroIndex(7, 3), caroIndex(7, 8)], contains(m));
+  });
+  test('AI Kho khi di truoc: khai cuoc sat thu Hoa Nguyet', () {
+    final b = board({(7, 7): o, (8, 8): x});
+    final m = move(Difficulty.hard, b);
+    expect([caroIndex(7, 8), caroIndex(8, 7)], contains(m));
+  });
+
+  test('AI Kho VCF: phat hien va danh nuoc don ep 4 thang ngay', () {
+    final b = board({
+      (7, 5): o, (7, 6): o, (7, 7): o, (7, 8): o,
+      (8, 5): x, (8, 6): x, (8, 7): x,
+    });
+    final m = move(Difficulty.hard, b);
+    expect([caroIndex(7, 4), caroIndex(7, 9)], contains(m));
   });
 }

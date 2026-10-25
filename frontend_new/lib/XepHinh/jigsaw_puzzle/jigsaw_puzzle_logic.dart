@@ -40,6 +40,12 @@ class JigsawPuzzleLogic extends ChangeNotifier {
         currentCol: currentCol,
       );
     });
+    // Màn hình vẽ mảnh theo thứ tự danh sách, nên xếp danh sách theo vị trí
+    // hiện tại (ô thứ i của lưới = pieces[i]). Đổi chỗ trong selectOrSwapPiece
+    // giữ nguyên quy tắc này. Trước đây danh sách giữ thứ tự đúng nên bàn hiện ra
+    // như đã giải sẵn, dù vị trí thật đã bị xáo.
+    pieces.sort((a, b) =>
+        (a.currentRow * gridSize + a.currentCol).compareTo(b.currentRow * gridSize + b.currentCol));
 
     _checkWinCondition();
     notifyListeners();

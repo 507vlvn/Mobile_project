@@ -1,4 +1,5 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend_new/caro/models/caro_mode.dart';
 import 'package:frontend_new/caro/models/difficulty.dart';
 import 'package:frontend_new/caro/services/score_reporter.dart';
 import 'package:frontend_new/caro/caro_controller.dart';
@@ -42,7 +43,6 @@ void main() {
   });
 
   test('người thắng → bản ghi WIN, đường thắng 5 ô', () async {
-    // Máy luôn đánh vào ô trống đầu tiên của hàng 0 để không cản đường.
     final c = CaroController(
       aiRunner: (r) async => r.cells.indexOf(kCaroEmpty),
       minThinkTime: Duration.zero,
@@ -79,5 +79,84 @@ void main() {
     expect(c2.canPlayerMove, isTrue);
     c.dispose();
     c2.dispose();
+  });
+
+  test('Local PvP: 2 người đánh luân phiên, không gọi AI, undo 1 nước', () async {
+    final c = make();
+    c.newGame(difficulty: Difficulty.easy, playerFirst: true, mode: CaroGameMode.pvpLocal);
+    expect(c.isPvP, isTrue);
+    expect(c.currentTurnPlayer, kCaroPlayer);
+
+    // Người 1 (X) đánh
+    expect(c.placePlayer(caroIndex(7, 7)), isTrue);
+    await settle();
+    expect(c.history.length, 1);
+    expect(c.cells[caroIndex(7, 7)], kCaroPlayer);
+    expect(c.currentTurnPlayer, kCaroAi); // Lượt Người 2 (O)
+
+    // Người 2 (O) đánh
+    expect(c.placePlayer(caroIndex(7, 8)), isTrue);
+    await settle();
+    expect(c.history.length, 2);
+    expect(c.cells[caroIndex(7, 8)], kCaroAi);
+    expect(c.currentTurnPlayer, kCaroPlayer); // Trở lại Người 1
+
+    // Undo 1 nước của Người 2
+    expect(c.undo(), isTrue);
+    expect(c.history.length, 1);
+    expect(c.cells[caroIndex(7, 8)], kCaroEmpty);
+    expect(c.currentTurnPlayer, kCaroAi); // Vẫn là lượt Người 2
+
+    c.dispose();
+  });
+
+  test('Fading: quân thứ 7 làm quân thứ 1 biến mất', () async {
+    final c = CaroController(
+      aiRunner: (r) async => caroIndex(0, 2 * r.cells.where((x) => x == kCaroAi).length),
+      minThinkTime: Duration.zero,
+    );
+    c.newGame(difficulty: Difficulty.easy, playerFirst: true, mode: CaroGameMode.fading);
+    expect(c.isFading, isTrue);
+
+    // Người chơi đánh 6 quân rải rác (không tạo thành 5 quân liên tiếp)
+    final positions = [
+      caroIndex(5, 0),
+      caroIndex(5, 2),
+      caroIndex(5, 4),
+      caroIndex(5, 6),
+      caroIndex(5, 8),
+      caroIndex(5, 10),
+    ];
+    for (final pos in positions) {
+      expect(c.placePlayer(pos), isTrue);
+      await settle();
+    }
+    expect(c.playerXStones.length, 6);
+    expect(c.cells[positions.first], kCaroPlayer);
+
+    // Đánh quân thứ 7: quân ở positions.first phải biến mất
+    expect(c.placePlayer(caroIndex(6, 0)), isTrue);
+    await settle();
+    expect(c.cells[positions.first], kCaroEmpty, reason: 'Quân cũ nhất phải biến mất');
+    expect(c.playerXStones.length, 6);
+    expect(c.playerXStones.contains(caroIndex(6, 0)), isTrue);
+
+    c.dispose();
+  });
+
+  test('Hint: gợi ý nước đi giảm số lượt gợi ý', () async {
+    final c = make();
+    c.newGame(difficulty: Difficulty.easy, playerFirst: true);
+    expect(c.hintsRemaining, 3);
+    final hint = await c.requestHint();
+    expect(hint, isNotNull);
+    expect(c.hintCell, hint);
+    expect(c.hintsRemaining, 2);
+    expect(c.cells[hint!], kCaroEmpty);
+
+    // Đặt quân thì xoá hint
+    c.placePlayer(hint);
+    expect(c.hintCell, isNull);
+    c.dispose();
   });
 }

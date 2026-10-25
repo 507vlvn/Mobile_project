@@ -6,6 +6,7 @@ import 'engine/reaction_engine.dart';
 import 'services/phaseshift_score_service.dart';
 import 'widgets/game_board.dart';
 import 'widgets/control_panel.dart';
+import 'widgets/phaseshift_rules.dart';
 import '../shared/models/difficulty.dart';
 import '../shared/services/timer_service.dart';
 
@@ -33,6 +34,9 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
   ElementBlock? _activeBlock;
   Position? _activePosition;
   late ElementBlock _nextBlock;
+
+  /// Cột của khối vừa đặt xuống — khối kế tiếp xuất hiện ở cột này.
+  int? _lastDropCol;
 
   int _score = 0;
   int _highScore = 0;
@@ -76,6 +80,7 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
     _isGameOver = false;
     _isPaused = false;
     _lastReactionLog = null;
+    _lastDropCol = null;
 
     _nextBlock = PhysicsEngine.generateRandomBlock(widget.difficulty);
     _spawnNewBlock();
@@ -84,16 +89,20 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
   void _spawnNewBlock() {
     _activeBlock = _nextBlock;
     _nextBlock = PhysicsEngine.generateRandomBlock(widget.difficulty);
-    _activePosition = Position(0, _cols ~/ 2);
 
-    if (!PhysicsEngine.isValidMove(
-      board: _board,
-      position: _activePosition!,
-      rows: _rows,
-      cols: _cols,
-    )) {
-      _triggerGameOver();
+    // Khối mới ra ở cột vừa đặt khối trước (đỡ phải dời lại), nếu cột đó còn
+    // ít nhất 2 ô trống phía trên (tránh vừa ra đã chạm hàng trên cùng và thua oan);
+    // không thì ra ở cột giữa như cũ — cột giữa cũng bị chiếm thì thua.
+    final center = _cols ~/ 2;
+    bool free(int row, int col) =>
+        PhysicsEngine.isValidMove(board: _board, position: Position(row, col), rows: _rows, cols: _cols);
+    final last = _lastDropCol;
+    if (last != null && last != center && free(0, last) && free(1, last)) {
+      _activePosition = Position(0, last);
+      return;
     }
+    _activePosition = Position(0, center);
+    if (!free(0, center)) _triggerGameOver();
   }
 
   void _startTimers() {
@@ -146,8 +155,12 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
       return;
     }
 
+    _lastDropCol = _activePosition!.col;
     _activeBlock = null;
     _activePosition = null;
+
+    // Nước vừa đặt lên mép một khối thì chảy xuống chỗ thấp hơn trước khi xét phản ứng.
+    ReactionEngine.applyPhysicsTick(_board, _rows, _cols);
 
     final result = ReactionEngine.processReactions(
       grid: _board,
@@ -255,6 +268,21 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
       _stopTimers();
       _showPauseDialog();
     } else {
+      _startTimers();
+    }
+  }
+
+  /// Xem luật: tạm dừng trong lúc đọc, đóng bảng thì chơi tiếp
+  /// (nếu trước đó đã tự tạm dừng thì vẫn giữ trạng thái dừng).
+  Future<void> _showRules() async {
+    final wasRunning = !_isGameOver && !_isPaused;
+    if (wasRunning) {
+      setState(() => _isPaused = true);
+      _stopTimers();
+    }
+    await showPhaseShiftRules(context);
+    if (wasRunning && mounted && !_isGameOver) {
+      setState(() => _isPaused = false);
       _startTimers();
     }
   }
@@ -425,6 +453,11 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
         title: Text('PhaseShift - ${widget.difficulty.displayName}'),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: _showRules,
+            tooltip: 'Luật chơi',
+          ),
           IconButton(
             icon: const Icon(Icons.pause_circle_outline_rounded),
             onPressed: _togglePause,
