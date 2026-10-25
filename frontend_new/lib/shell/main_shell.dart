@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_tokens.dart';
 import '../friends/friends_screen.dart';
 import '../hub/hub_screen.dart';
+import '../leaderboard/leaderboard_screen.dart';
 import '../profile/profile_screen.dart';
 import '../pvp/pvp_lobby_screen.dart';
 
@@ -17,18 +17,20 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  static const _leaderboardIndex = 2;
   static const _friendsIndex = 3;
 
   int _index = 0;
-  bool _friendsVisited = false; // tab Bạn bè chỉ dựng (và gọi API) khi được mở
+  // Tab Xếp hạng / Bạn bè chỉ dựng (và gọi API) khi được mở lần đầu.
+  bool _leaderboardVisited = false;
+  bool _friendsVisited = false;
 
   @override
   Widget build(BuildContext context) {
-    // Các tab chưa có chức năng tạm hiện màn chờ.
     final pages = <Widget>[
       const HubScreen(),
       const PvpLobbyScreen(),
-      const _ComingSoon(title: 'Xếp hạng', icon: Icons.leaderboard_rounded),
+      _leaderboardVisited ? const LeaderboardScreen() : const SizedBox.shrink(),
       _friendsVisited
           ? FriendsScreen(active: _index == _friendsIndex)
           : const SizedBox.shrink(),
@@ -41,6 +43,7 @@ class _MainShellState extends State<MainShell> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() {
           _index = i;
+          if (i == _leaderboardIndex) _leaderboardVisited = true;
           if (i == _friendsIndex) _friendsVisited = true;
         }),
         destinations: const [
@@ -70,36 +73,6 @@ class _MainShellState extends State<MainShell> {
             label: 'Hồ sơ',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ComingSoon extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _ComingSoon({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 56, color: scheme.onSurfaceVariant),
-            const SizedBox(height: AppSpacing.md),
-            Text(title, style: text.titleLarge),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Đang được phát triển',
-              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
       ),
     );
   }

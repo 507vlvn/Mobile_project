@@ -139,6 +139,33 @@ class _FakeApi implements ApiClient {
   Future<SubmitResult> submitHistory(GameRecord record) async =>
       SubmitResult(score: record.localScore);
 
+  final leaderboardQueries = <String>[];
+
+  @override
+  Future<List<LeaderboardEntry>> leaderboard(LeaderboardQuery query, {int top = 50}) async {
+    leaderboardQueries.add(query.key);
+    return query.ranked
+        ? const [
+            LeaderboardEntry(rank: 1, user: _an, bestScore: 1350, rating: 1350, games: 12, wins: 9),
+            LeaderboardEntry(rank: 2, user: UserSummary(userId: 7, username: 'binh', fullName: 'Thái Bình'),
+                bestScore: 1210, rating: 1210, games: 5, wins: 3),
+          ]
+        : const [
+            LeaderboardEntry(rank: 1, user: _an, bestScore: 2840, bestTimeSeconds: 312),
+            LeaderboardEntry(rank: 2, user: _cuong, bestScore: 1990, bestTimeSeconds: 455),
+          ];
+  }
+
+  @override
+  Future<MyRank> myRank(LeaderboardQuery query) async =>
+      query.ranked ? const MyRank(rank: 2, rating: 1210, games: 5, wins: 3) : const MyRank();
+
+  @override
+  Future<SeasonInfo> season() async => SeasonInfo(
+        start: DateTime.now().subtract(const Duration(days: 2)),
+        end: DateTime.now().add(const Duration(days: 4, hours: 3)),
+      );
+
   @override
   Future<AuthResult> login({required String usernameOrEmail, required String password}) async =>
       const AuthResult(token: 't', user: _me);
@@ -271,7 +298,43 @@ void main() {
 
     await tester.tap(find.text('Xếp hạng'));
     await tester.pumpAndSettle();
-    expect(find.text('Đang được phát triển'), findsOneWidget);
+    expect(find.text('Kỷ lục'), findsOneWidget);
+  });
+
+  // ------------------------------------------------------------ xếp hạng
+
+  testWidgets('Xếp hạng: bảng kỷ lục, đổi sang đối kháng thấy hạng của mình', (WidgetTester tester) async {
+    final fake = _FakeApi();
+    await _pumpApp(tester, loggedIn: true, fake: fake);
+    await _openTab(tester, 'Xếp hạng');
+
+    expect(find.text('Nguyễn An'), findsOneWidget);
+    expect(find.text('2840'), findsOneWidget);
+    expect(find.text('05:12'), findsOneWidget);
+    expect(find.text('🥇'), findsOneWidget);
+    expect(find.textContaining('Mùa tuần này kết thúc sau 4 ngày'), findsOneWidget);
+    expect(find.text('Bạn chưa có thành tích trong bảng này'), findsOneWidget);
+    expect(fake.leaderboardQueries.first, contains('board=record'));
+
+    await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>).first, matching: find.text('Đối kháng')));
+    await tester.pumpAndSettle();
+    expect(fake.leaderboardQueries.last, contains('board=ranked'));
+    expect(fake.leaderboardQueries.last, contains('gameCode=CARO'), reason: 'bảng đối kháng chỉ có Caro / Xếp số');
+    expect(find.text('#2'), findsOneWidget);
+    expect(find.text('Thái Bình (bạn)'), findsOneWidget);
+    expect(find.text('12 trận · thắng 75%'), findsOneWidget);
+  });
+
+  testWidgets('Xếp hạng: bảng bạn bè khi chưa đăng nhập thì mời đăng nhập', (WidgetTester tester) async {
+    final fake = _FakeApi();
+    await _pumpApp(tester, fake: fake);
+    await _openTab(tester, 'Xếp hạng');
+    expect(find.text('Nguyễn An'), findsOneWidget, reason: 'bảng toàn server xem được khi chưa đăng nhập');
+
+    await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>).last, matching: find.text('Bạn bè')));
+    await tester.pumpAndSettle();
+    expect(find.text('Đăng nhập để xem bảng bạn bè'), findsOneWidget);
+    expect(fake.leaderboardQueries.where((q) => q.contains('scope=friends')), isEmpty);
   });
 
   testWidgets('Hồ sơ khi chưa đăng nhập: hiện thẻ Khách và mở được màn đăng nhập',

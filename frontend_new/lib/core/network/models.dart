@@ -192,6 +192,155 @@ class SubmitResult {
       );
 }
 
+// ------------------------------------------------------------ bảng xếp hạng
+
+/// Tham số của GET /leaderboard và /leaderboard/me (LeaderboardController.Parse).
+class LeaderboardQuery {
+  final String gameCode;
+
+  /// true = bảng đối kháng (rating, bảng `PlayerRatings`);
+  /// false = bảng kỷ lục (điểm cao nhất chơi đơn, bảng `History`).
+  final bool ranked;
+
+  /// 1..3; null = mọi độ khó (chỉ có ý nghĩa với bảng kỷ lục).
+  final int? difficulty;
+  final bool friendsOnly;
+
+  /// true = mùa hiện tại (tuần, từ thứ Hai); false = mọi lúc.
+  final bool season;
+
+  const LeaderboardQuery({
+    required this.gameCode,
+    this.ranked = false,
+    this.difficulty,
+    this.friendsOnly = false,
+    this.season = true,
+  });
+
+  LeaderboardQuery copyWith({
+    String? gameCode,
+    bool? ranked,
+    int? Function()? difficulty,
+    bool? friendsOnly,
+    bool? season,
+  }) =>
+      LeaderboardQuery(
+        gameCode: gameCode ?? this.gameCode,
+        ranked: ranked ?? this.ranked,
+        difficulty: difficulty != null ? difficulty() : this.difficulty,
+        friendsOnly: friendsOnly ?? this.friendsOnly,
+        season: season ?? this.season,
+      );
+
+  Map<String, Object> toQuery() => {
+        'gameCode': gameCode,
+        'board': ranked ? 'ranked' : 'record',
+        if (!ranked && difficulty != null) 'difficulty': difficulty!,
+        'scope': friendsOnly ? 'friends' : 'global',
+        'period': season ? 'season' : 'all',
+      };
+
+  /// Khóa để nhớ kết quả đã tải.
+  String get key => toQuery().entries.map((e) => '${e.key}=${e.value}').join('&');
+}
+
+/// `LeaderboardEntryDto`: {rank, userId, username, fullName, avatarUrl, bestScore,
+/// bestTimeSeconds, rating?, tier?, tierName?, games?, wins?}.
+/// Bảng đối kháng: bestScore = rating, bestTimeSeconds = 0.
+class LeaderboardEntry {
+  final int rank;
+  final UserSummary user;
+  final int bestScore;
+  final int bestTimeSeconds;
+  final int? rating;
+  final Tier? tier;
+  final int? games;
+  final int? wins;
+
+  const LeaderboardEntry({
+    required this.rank,
+    required this.user,
+    required this.bestScore,
+    this.bestTimeSeconds = 0,
+    this.rating,
+    this.tier,
+    this.games,
+    this.wins,
+  });
+
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> j) {
+    final rating = j['rating'] as int?;
+    return LeaderboardEntry(
+      rank: (j['rank'] as int?) ?? 0,
+      user: UserSummary.fromJson(j),
+      bestScore: (j['bestScore'] as int?) ?? 0,
+      bestTimeSeconds: (j['bestTimeSeconds'] as int?) ?? 0,
+      rating: rating,
+      tier: Tier.tryParse(j['tier'] as String?) ?? (rating == null ? null : Tier.fromRating(rating)),
+      games: j['games'] as int?,
+      wins: j['wins'] as int?,
+    );
+  }
+}
+
+/// `MyRankDto`: {rank?, bestScore?, bestTimeSeconds?, rating?, tier?, games?, wins?}.
+/// rank null = mình chưa có trong bảng này.
+class MyRank {
+  final int? rank;
+  final int? bestScore;
+  final int? bestTimeSeconds;
+  final int? rating;
+  final Tier? tier;
+  final int? games;
+  final int? wins;
+
+  const MyRank({this.rank, this.bestScore, this.bestTimeSeconds, this.rating, this.tier, this.games, this.wins});
+
+  factory MyRank.fromJson(Map<String, dynamic> j) {
+    final rating = j['rating'] as int?;
+    return MyRank(
+      rank: j['rank'] as int?,
+      bestScore: j['bestScore'] as int?,
+      bestTimeSeconds: j['bestTimeSeconds'] as int?,
+      rating: rating,
+      tier: Tier.tryParse(j['tier'] as String?) ?? (rating == null ? null : Tier.fromRating(rating)),
+      games: j['games'] as int?,
+      wins: j['wins'] as int?,
+    );
+  }
+}
+
+/// `SeasonDto`: {startUtc, endUtc, now} — mùa theo tuần (thứ Hai → thứ Hai).
+class SeasonInfo {
+  final DateTime start;
+  final DateTime end;
+
+  /// Lệch giờ giữa server và máy (để đếm ngược đúng).
+  final Duration clockOffset;
+
+  const SeasonInfo({required this.start, required this.end, this.clockOffset = Duration.zero});
+
+  /// Thời gian còn lại của mùa theo đồng hồ server.
+  Duration remaining([DateTime? now]) => end.difference((now ?? DateTime.now()).add(clockOffset));
+
+  factory SeasonInfo.fromJson(Map<String, dynamic> j) {
+    final serverNow = parseServerDate(j['now']);
+    return SeasonInfo(
+      start: parseServerDate(j['startUtc']),
+      end: parseServerDate(j['endUtc']),
+      clockOffset: serverNow.difference(DateTime.now()),
+    );
+  }
+}
+
+/// "2 ngày 5 giờ" / "3 giờ 12 phút" / "8 phút".
+String seasonCountdownVi(Duration d) {
+  if (d.isNegative) return 'sắp kết thúc';
+  if (d.inDays > 0) return '${d.inDays} ngày ${d.inHours % 24} giờ';
+  if (d.inHours > 0) return '${d.inHours} giờ ${d.inMinutes % 60} phút';
+  return '${d.inMinutes} phút';
+}
+
 // ------------------------------------------------------------ bạn bè
 
 /// `FriendDto`: {userId, username, fullName?, avatarUrl?, status: online|in_match|offline, lastSeenAt?}.

@@ -40,6 +40,13 @@ abstract interface class ApiClient {
   /// Nộp kết quả một ván chơi đơn (POST /history).
   Future<SubmitResult> submitHistory(GameRecord record);
 
+  // ---- Bảng xếp hạng ----
+  Future<List<LeaderboardEntry>> leaderboard(LeaderboardQuery query, {int top = 50});
+
+  /// Hạng của mình trong bảng (cần đăng nhập).
+  Future<MyRank> myRank(LeaderboardQuery query);
+  Future<SeasonInfo> season();
+
   // ---- Bạn bè ----
   Future<List<FriendInfo>> friends();
   Future<FriendRequests> friendRequests();
@@ -217,6 +224,19 @@ class HttpApiClient implements ApiClient {
             query: {'page': page, 'pageSize': pageSize})),
         MatchHistoryItem.fromJson,
       );
+
+  @override
+  Future<List<LeaderboardEntry>> leaderboard(LeaderboardQuery query, {int top = 50}) async => [
+        for (final e in _list(await _send('GET', '/leaderboard', query: {...query.toQuery(), 'top': top})))
+          LeaderboardEntry.fromJson(e),
+      ];
+
+  @override
+  Future<MyRank> myRank(LeaderboardQuery query) async =>
+      MyRank.fromJson(_map(await _send('GET', '/leaderboard/me', query: query.toQuery())));
+
+  @override
+  Future<SeasonInfo> season() async => SeasonInfo.fromJson(_map(await _send('GET', '/leaderboard/season')));
 
   @override
   Future<SubmitResult> submitHistory(GameRecord record) async =>
