@@ -32,11 +32,13 @@ builder.Services.AddScoped<IChallengeRepository, ChallengeRepository>();
 builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<IHistoryRepository, HistoryRepository>();
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();
+builder.Services.AddScoped<ISudokuRepository, SudokuRepository>();
 
 // --- Services ---
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LeaderboardService>();
 builder.Services.AddScoped<ChallengeService>();
+builder.Services.AddScoped<ISudokuService, SudokuService>();
 
 // --- Realtime (SignalR, trạng thái trận trong bộ nhớ) ---
 builder.Services.AddSignalR();
