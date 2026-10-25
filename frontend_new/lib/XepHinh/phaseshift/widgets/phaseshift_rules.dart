@@ -47,7 +47,9 @@ class _RulesContent extends StatelessWidget {
             style: text.bodyMedium?.copyWith(color: muted)),
 
         const _Section('🎯 Mục tiêu'),
-        const _Bullet('Mỗi lượt có một khối nguyên tố rơi từ giữa hàng trên cùng xuống bàn 8 cột.'),
+        const _Bullet('Mỗi lượt có một khối nguyên tố rơi từ hàng trên cùng xuống bàn 8 cột. '
+            'Khối đầu tiên ra ở cột giữa; các khối sau ra ngay cột bạn vừa đặt khối trước '
+            '(cột đó gần đầy thì ra ở cột giữa).'),
         const _Bullet('Đặt khối cạnh khối khác loại để tạo phản ứng: khối biến mất hoặc biến đổi, bạn được điểm.'),
         const _Bullet('Giữ cho bàn không bị đầy càng lâu càng tốt và đạt điểm cao nhất.'),
 

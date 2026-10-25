@@ -35,6 +35,9 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
   Position? _activePosition;
   late ElementBlock _nextBlock;
 
+  /// Cột của khối vừa đặt xuống — khối kế tiếp xuất hiện ở cột này.
+  int? _lastDropCol;
+
   int _score = 0;
   int _highScore = 0;
   int _comboCount = 0;
@@ -77,6 +80,7 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
     _isGameOver = false;
     _isPaused = false;
     _lastReactionLog = null;
+    _lastDropCol = null;
 
     _nextBlock = PhysicsEngine.generateRandomBlock(widget.difficulty);
     _spawnNewBlock();
@@ -85,16 +89,20 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
   void _spawnNewBlock() {
     _activeBlock = _nextBlock;
     _nextBlock = PhysicsEngine.generateRandomBlock(widget.difficulty);
-    _activePosition = Position(0, _cols ~/ 2);
 
-    if (!PhysicsEngine.isValidMove(
-      board: _board,
-      position: _activePosition!,
-      rows: _rows,
-      cols: _cols,
-    )) {
-      _triggerGameOver();
+    // Khối mới ra ở cột vừa đặt khối trước (đỡ phải dời lại), nếu cột đó còn
+    // ít nhất 2 ô trống phía trên (tránh vừa ra đã chạm hàng trên cùng và thua oan);
+    // không thì ra ở cột giữa như cũ — cột giữa cũng bị chiếm thì thua.
+    final center = _cols ~/ 2;
+    bool free(int row, int col) =>
+        PhysicsEngine.isValidMove(board: _board, position: Position(row, col), rows: _rows, cols: _cols);
+    final last = _lastDropCol;
+    if (last != null && last != center && free(0, last) && free(1, last)) {
+      _activePosition = Position(0, last);
+      return;
     }
+    _activePosition = Position(0, center);
+    if (!free(0, center)) _triggerGameOver();
   }
 
   void _startTimers() {
@@ -147,6 +155,7 @@ class _PhaseShiftScreenState extends State<PhaseShiftScreen> {
       return;
     }
 
+    _lastDropCol = _activePosition!.col;
     _activeBlock = null;
     _activePosition = null;
 
