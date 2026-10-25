@@ -1,10 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:frontend_new/caro/models/caro_mode.dart';
 import 'package:frontend_new/caro/models/challenge_context.dart';
 import 'package:frontend_new/caro/models/difficulty.dart';
 import 'package:frontend_new/caro/services/score_reporter.dart';
@@ -19,7 +20,7 @@ enum CaroResult { playerWin, aiWin, draw }
 /// Hàm tính nước đi cho máy (mặc định chạy trên isolate; test có thể thay thế).
 typedef CaroAiRunner = Future<int> Function(CaroAiRequest request);
 
-/// Trạng thái một ván Caro với máy.
+/// Trạng thái một ván Caro (hỗ trợ PvE, Local PvP 2 người, và Cờ sinh tồn).
 class CaroController extends ChangeNotifier {
   CaroController({
     CaroAiRunner? aiRunner,
@@ -27,6 +28,9 @@ class CaroController extends ChangeNotifier {
     this.indicatorDelay = const Duration(milliseconds: 300),
     this.challenge,
   }) : _runner = aiRunner ?? runCaroAiInIsolate;
+
+  /// Giới hạn số quân tối đa trên bàn cho mỗi bên trong chế độ Cờ sinh tồn.
+  static const int kFadingStoneLimit = 6;
 
   /// Khác null = ván thách đấu: người chơi luôn đi trước, máy dùng seed xác
   /// định từ `challenge.seed` + thế cờ, không lưu/khôi phục ván.
@@ -45,6 +49,7 @@ class CaroController extends ChangeNotifier {
   CaroPhase _phase = CaroPhase.setup;
   CaroPhase get phase => _phase;
 
+  CaroGameMode gameMode = CaroGameMode.pve;
   Difficulty difficulty = Difficulty.medium;
   bool playerFirst = true;
 
@@ -57,6 +62,12 @@ class CaroController extends ChangeNotifier {
   /// Danh sách ô đã đánh theo thứ tự. Người đi đầu luôn ở chỉ số chẵn.
   final List<int> _history = [];
   List<int> get history => List.unmodifiable(_history);
+
+  /// Danh sách các ô cờ hiện đang sống của từng bên (dành cho chế độ Fading).
+  final List<int> _playerXStones = [];
+  final List<int> _playerOStones = [];
+  List<int> get playerXStones => List.unmodifiable(_playerXStones);
+  List<int> get playerOStones => List.unmodifiable(_playerOStones);
 
   int _undos = 0;
   int get undos => _undos;
@@ -78,10 +89,24 @@ class CaroController extends ChangeNotifier {
   int _gen = 0;
   bool _disposed = false;
 
+  /// Nước gợi ý hiện tại (null nếu không có).
+  int? _hintCell;
+  int? get hintCell => _hintCell;
+
+  /// Số lần gợi ý còn lại trong ván (mặc định 3 lần).
+  int _hintsRemaining = 3;
+  int get hintsRemaining => _hintsRemaining;
+
   int? get lastMove => _history.isEmpty ? null : _history.last;
 
   int _playerOf(int historyIndex) =>
       ((historyIndex % 2 == 0) == playerFirst) ? kCaroPlayer : kCaroAi;
+
+  /// Người chơi đang đến lượt (kCaroPlayer hoặc kCaroAi).
+  int get currentTurnPlayer => _playerOf(_history.length);
+
+  bool get isPvP => gameMode == CaroGameMode.pvpLocal;
+  bool get isFading => gameMode == CaroGameMode.fading;
 
   int get playerMoves {
     var n = 0;
@@ -91,13 +116,34 @@ class CaroController extends ChangeNotifier {
     return n;
   }
 
+  int get opponentMoves {
+    var n = 0;
+    for (var i = 0; i < _history.length; i++) {
+      if (_playerOf(i) == kCaroAi) n++;
+    }
+    return n;
+  }
+
+  /// Cảnh báo quân sắp biến mất ở nước đi tiếp theo (trong chế độ Fading).
+  int? get fadingWarningX =>
+      (isFading && _playerXStones.length >= kFadingStoneLimit) ? _playerXStones.first : null;
+
+  int? get fadingWarningO =>
+      (isFading && _playerOStones.length >= kFadingStoneLimit) ? _playerOStones.first : null;
+
   bool get isPlaying => _phase == CaroPhase.playing;
 
-  bool get isPlayerTurn => isPlaying && _playerOf(_history.length) == kCaroPlayer;
+  bool get isPlayerTurn =>
+      isPlaying && (isPvP || _playerOf(_history.length) == kCaroPlayer);
 
-  bool get canPlayerMove => isPlayerTurn && !_thinking;
+  bool get canPlayerMove =>
+      isPlaying && !_thinking && (isPvP || _playerOf(_history.length) == kCaroPlayer);
 
-  bool get canUndo => isPlaying && !_thinking && playerMoves > 0;
+  bool get canUndo {
+    if (!isPlaying || _thinking) return false;
+    if (isPvP) return _history.isNotEmpty;
+    return playerMoves > 0;
+  }
 
   bool isEmptyCell(int idx) => cells[idx] == kCaroEmpty;
 
@@ -105,25 +151,33 @@ class CaroController extends ChangeNotifier {
   // Luồng ván chơi
   // -------------------------------------------------------------------------
 
-  void newGame({required Difficulty difficulty, required bool playerFirst}) {
+  void newGame({
+    required Difficulty difficulty,
+    required bool playerFirst,
+    CaroGameMode mode = CaroGameMode.pve,
+  }) {
     _gen++;
     final ch = challenge;
+    gameMode = ch != null ? CaroGameMode.pve : mode;
     this.difficulty = ch?.difficulty ?? difficulty;
     this.playerFirst = ch != null ? true : playerFirst;
-    playerFirst = this.playerFirst;
     cells.fillRange(0, kCaroCells, kCaroEmpty);
     _history.clear();
+    _playerXStones.clear();
+    _playerOStones.clear();
     _undos = 0;
     _result = null;
     _winLine = null;
     _thinking = false;
     _thinkingVisible = false;
+    _hintCell = null;
+    _hintsRemaining = 3;
     version++;
     clock.reset();
     _phase = CaroPhase.playing;
     clock.start();
     notifyListeners();
-    if (!playerFirst) _aiTurn();
+    if (!this.playerFirst && !isPvP) _aiTurn();
   }
 
   /// Về màn chọn thiết lập (xoá ván đang dở).
@@ -131,6 +185,7 @@ class CaroController extends ChangeNotifier {
     _gen++;
     _thinking = false;
     _thinkingVisible = false;
+    _hintCell = null;
     clock.pause();
     _phase = CaroPhase.setup;
     if (challenge == null) clearSave();
@@ -140,22 +195,35 @@ class CaroController extends ChangeNotifier {
   /// Người chơi đặt quân. Trả về true nếu nước đi hợp lệ.
   bool placePlayer(int idx) {
     if (!canPlayerMove || idx < 0 || idx >= kCaroCells || cells[idx] != kCaroEmpty) return false;
-    _place(idx, kCaroPlayer);
+    _hintCell = null;
+    final movingPlayer = isPvP ? currentTurnPlayer : kCaroPlayer;
+    _place(idx, movingPlayer);
     if (_phase == CaroPhase.playing) {
       save();
-      _aiTurn();
+      if (!isPvP) _aiTurn();
     }
     return true;
   }
 
   void _place(int idx, int player) {
+    // Nếu là chế độ cờ sinh tồn: nếu bên đó đã đạt tối đa 6 quân thì quân cũ nhất biến mất
+    if (isFading) {
+      final stones = player == kCaroPlayer ? _playerXStones : _playerOStones;
+      if (stones.length >= kFadingStoneLimit) {
+        final oldest = stones.removeAt(0);
+        cells[oldest] = kCaroEmpty;
+      }
+      stones.add(idx);
+    }
+
     cells[idx] = player;
     _history.add(idx);
     version++;
+
     if (caroMakesWin(cells, idx)) {
       _winLine = caroWinningLine(cells, idx);
       _finish(player == kCaroPlayer ? CaroResult.playerWin : CaroResult.aiWin);
-    } else if (_history.length >= kCaroCells) {
+    } else if (_history.length >= kCaroCells && !isFading) {
       _finish(CaroResult.draw);
     } else {
       notifyListeners();
@@ -165,13 +233,48 @@ class CaroController extends ChangeNotifier {
   void _finish(CaroResult r) {
     _result = r;
     _phase = CaroPhase.finished;
+    _hintCell = null;
     clock.pause();
     if (challenge == null) clearSave();
     notifyListeners();
   }
 
-  /// Seed cho lượt máy: ngẫu nhiên khi chơi thường; xác định (theo seed thách
-  /// đấu và số nước đã đi) khi thách đấu → cùng thế cờ thì máy chọn như nhau.
+  /// Yêu cầu gợi ý nước đi tốt nhất từ AI.
+  Future<int?> requestHint() async {
+    if (!canPlayerMove || _hintsRemaining <= 0 || _phase != CaroPhase.playing) return null;
+    _gen++;
+    final currentGen = _gen;
+    final targetPlayer = currentTurnPlayer;
+    final request = CaroAiRequest(
+      cells: List<int>.of(cells),
+      difficulty: Difficulty.hard,
+      aiPlayer: targetPlayer,
+      budgetMs: 500,
+    );
+    int move;
+    try {
+      move = await _runner(request);
+    } catch (_) {
+      move = chooseCaroMove(request);
+    }
+    if (_disposed || currentGen != _gen) return null;
+    if (move >= 0 && move < kCaroCells && cells[move] == kCaroEmpty) {
+      _hintCell = move;
+      _hintsRemaining--;
+      notifyListeners();
+      return move;
+    }
+    return null;
+  }
+
+  void clearHint() {
+    if (_hintCell != null) {
+      _hintCell = null;
+      notifyListeners();
+    }
+  }
+
+  /// Seed cho lượt máy.
   int _aiSeed() {
     final ch = challenge;
     if (ch == null) return Random().nextInt(1 << 30);
@@ -213,7 +316,7 @@ class CaroController extends ChangeNotifier {
     _thinking = false;
     _thinkingVisible = false;
     if (move < 0 || move >= kCaroCells || cells[move] != kCaroEmpty) {
-      move = cells.indexOf(kCaroEmpty); // phòng thủ: không bao giờ đánh vào ô đã có quân
+      move = cells.indexOf(kCaroEmpty);
     }
     if (move < 0) {
       _finish(CaroResult.draw);
@@ -223,25 +326,49 @@ class CaroController extends ChangeNotifier {
     if (_phase == CaroPhase.playing) save();
   }
 
-  /// Đi lại: xoá nước gần nhất của người chơi cùng nước đáp trả của máy. Tính 1 lần đi lại.
+  /// Đi lại nước cờ.
   bool undo() {
     if (!canUndo) return false;
     _gen++;
-    final lastIsAi = _playerOf(_history.length - 1) == kCaroAi;
-    if (lastIsAi) _removeLast();
-    _removeLast();
+    _hintCell = null;
+
+    if (isPvP) {
+      // Trong PvP cục bộ, chỉ huỷ nước đi vừa rồi
+      _history.removeLast();
+    } else {
+      // Trong PvE, huỷ nước của máy và nước của người chơi
+      final lastIsAi = _playerOf(_history.length - 1) == kCaroAi;
+      if (lastIsAi) _history.removeLast();
+      if (_history.isNotEmpty) _history.removeLast();
+    }
+
     _undos++;
+    _rebuildBoardFromHistory();
     version++;
     notifyListeners();
     save();
-    // Nếu máy đi trước và vừa bị xoá hết nước người chơi thì máy không cần đi lại:
-    // lịch sử còn lại luôn kết thúc bằng nước của máy → đến lượt người chơi.
     return true;
   }
 
-  void _removeLast() {
-    final idx = _history.removeLast();
-    cells[idx] = kCaroEmpty;
+  /// Tái thiết lập bàn cờ và danh sách quân cờ Fading dựa trên lịch sử nước đi.
+  void _rebuildBoardFromHistory() {
+    cells.fillRange(0, kCaroCells, kCaroEmpty);
+    _playerXStones.clear();
+    _playerOStones.clear();
+
+    for (var i = 0; i < _history.length; i++) {
+      final idx = _history[i];
+      final p = _playerOf(i);
+      if (isFading) {
+        final stones = p == kCaroPlayer ? _playerXStones : _playerOStones;
+        if (stones.length >= kFadingStoneLimit) {
+          final oldest = stones.removeAt(0);
+          cells[oldest] = kCaroEmpty;
+        }
+        stones.add(idx);
+      }
+      cells[idx] = p;
+    }
   }
 
   void pause() {
@@ -252,7 +379,7 @@ class CaroController extends ChangeNotifier {
     if (_phase == CaroPhase.playing) clock.start();
   }
 
-  /// Bản ghi để nộp điểm. Chỉ hợp lệ khi ván đã kết thúc.
+  /// Bản ghi để nộp điểm (chỉ áp dụng khi đánh với máy trong PvE).
   GameRecord toRecord() {
     final outcome = switch (_result) {
       CaroResult.playerWin => GameOutcome.win,
@@ -265,6 +392,7 @@ class CaroController extends ChangeNotifier {
       timeSeconds: clock.seconds,
       mistakes: _undos,
       moves: playerMoves,
+      hints: 3 - _hintsRemaining,
       outcome: outcome,
       challengeId: challenge?.challengeId,
     );
@@ -295,6 +423,8 @@ class CaroController extends ChangeNotifier {
         jsonEncode({
           'difficulty': difficulty.value,
           'playerFirst': playerFirst,
+          'gameMode': gameMode.name,
+          'hintsRemaining': _hintsRemaining,
           'history': _history,
           'undos': _undos,
           'seconds': clock.seconds,
@@ -329,21 +459,29 @@ class CaroController extends ChangeNotifier {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       final hist = (m['history'] as List).cast<int>();
       final first = m['playerFirst'] as bool;
-      final seen = <int>{};
-      for (final i in hist) {
-        if (i < 0 || i >= kCaroCells || !seen.add(i)) return false;
+      final savedMode = CaroGameMode.fromName(m['gameMode'] as String?);
+
+      if (savedMode != CaroGameMode.fading) {
+        final seen = <int>{};
+        for (final i in hist) {
+          if (i < 0 || i >= kCaroCells || !seen.add(i)) return false;
+        }
       }
+
       _gen++;
+      gameMode = savedMode;
       difficulty = Difficulty.fromValue(m['difficulty'] as int?);
       playerFirst = first;
-      cells.fillRange(0, kCaroCells, kCaroEmpty);
+      _hintsRemaining = (m['hintsRemaining'] as int?) ?? 3;
+      _hintCell = null;
       _history
         ..clear()
         ..addAll(hist);
-      for (var i = 0; i < hist.length; i++) {
-        cells[hist[i]] = _playerOf(i);
-      }
-      for (final i in hist) {
+
+      _rebuildBoardFromHistory();
+
+      // Kiểm tra xem ván đã thắng chưa
+      for (final i in _history) {
         if (caroMakesWin(cells, i)) {
           await clearSave();
           return false;
@@ -358,7 +496,7 @@ class CaroController extends ChangeNotifier {
       _phase = CaroPhase.playing;
       clock.start();
       notifyListeners();
-      if (_playerOf(_history.length) == kCaroAi) _aiTurn();
+      if (!isPvP && _playerOf(_history.length) == kCaroAi) _aiTurn();
       return true;
     } catch (_) {
       return false;

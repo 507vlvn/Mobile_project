@@ -1,4 +1,4 @@
-﻿import 'dart:isolate';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -33,7 +33,7 @@ Future<int> runCaroAiInIsolate(CaroAiRequest request) =>
 // ---------------------------------------------------------------------------
 
 // Mức: 0 không, 1 hai kín, 2 hai mở, 3 ba kín, 4 ba mở, 5 bốn kín, 6 bốn mở, 7 năm
-const List<int> _levelScore = [0, 50, 300, 500, 5000, 10000, 100000, 1000000];
+const List<int> _levelScore = [0, 50, 300, 800, 8000, 20000, 120000, 1500000];
 const int _five = 7;
 const int _openFour = 6;
 const int _closedFour = 5;
@@ -172,12 +172,19 @@ void _evalCell(Uint8List cells, int idx, int p) {
     if (lvl == _closedFour) n4++;
     if (lvl == _openThree) n3++;
   }
-  if (n4 >= 2 || (n4 >= 1 && n3 >= 1)) {
-    score += 50000;
+
+  // Đòn đôi sát thủ: 4-4, 4-3, 3-3 là các thế cờ có sức mạnh kết liễu trận đấu
+  if (n4 >= 2) {
+    score += 250000;
+    if (mx < _openFour) mx = _openFour;
+  } else if (n4 >= 1 && n3 >= 1) {
+    score += 180000;
     if (mx < _openFour) mx = _openFour;
   } else if (n3 >= 2) {
-    score += 3000;
+    score += 120000;
+    if (mx < _openFour) mx = _openFour;
   }
+
   _evScore = score;
   _evMax = mx;
 }
@@ -209,39 +216,270 @@ List<int> _candidates(Uint8List cells) {
 }
 
 // ---------------------------------------------------------------------------
-// Chọn nước đi
+// Opening Book & VCF Solver cho cấp Khó
+// ---------------------------------------------------------------------------
+
+/// Khai cuộc bất bại khi AI đi trước và phòng thủ chuẩn xác khi AI đi sau
+int? _checkOpeningBook(Uint8List cells, int ai) {
+  var aiStones = 0, oppStones = 0;
+  var oppLast = -1;
+  final center = caroIndex(7, 7);
+
+  for (var i = 0; i < kCaroCells; i++) {
+    if (cells[i] == ai) {
+      aiStones++;
+    } else if (cells[i] != 0) {
+      oppStones++;
+      oppLast = i;
+    }
+  }
+
+  // 1. Khi AI đi trước: Nước 1 bàn trống -> Luôn chiếm tâm (7, 7)
+  if (aiStones == 0 && oppStones == 0) {
+    return center;
+  }
+
+  // 2. Khi AI đi trước: Nước 3 (AI có 1 quân ở tâm, đối thủ vừa đi 1 quân)
+  if (aiStones == 1 && oppStones == 1 && cells[center] == ai && oppLast >= 0) {
+    final or = oppLast ~/ kCaroSize, oc = oppLast % kCaroSize;
+    final dr = or - 7, dc = oc - 7;
+
+    // Đối thủ đánh chéo (ví dụ: (8, 8)) -> Khai cuộc Hoa Nguyệt (Huayue): đánh kề thẳng (7, 8) hoặc (8, 7)
+    if (dr != 0 && dc != 0) {
+      final m = caroIndex(7, 7 + (dc > 0 ? 1 : -1));
+      if (cells[m] == 0) return m;
+      final m2 = caroIndex(7 + (dr > 0 ? 1 : -1), 7);
+      if (cells[m2] == 0) return m2;
+    }
+
+    // Đối thủ đánh thẳng (ví dụ: (7, 8)) -> Khai cuộc Phổ Nguyệt (Puyue): đánh kề chéo (8, 8) hoặc (6, 8)
+    if (dr == 0 || dc == 0) {
+      final targetR = dr == 0 ? 8 : (7 + dr);
+      final targetC = dc == 0 ? 8 : (7 + dc);
+      final m = caroIndex(targetR, targetC);
+      if (cells[m] == 0) return m;
+    }
+  }
+
+  // 3. Khi Người chơi đi trước: Nước 2 (Người chơi vừa đánh nước 1 ở tâm (7, 7))
+  if (aiStones == 0 && oppStones == 1 && cells[center] != 0) {
+    // AI phòng thủ chiếm ngay ô kề cạnh (7, 8) hoặc kề chéo (8, 8) để khoá góc phát triển của người chơi
+    final direct = caroIndex(7, 8);
+    if (cells[direct] == 0) return direct;
+  }
+
+  return null;
+}
+
+/// Tìm danh sách các ô thắng ngay của người chơi [p]
+List<int> _findThreatPoints(Uint8List cells, int p) {
+  final threats = <int>[];
+  final cands = _candidates(cells);
+  for (final m in cands) {
+    cells[m] = p;
+    if (caroMakesWin(cells, m)) {
+      threats.add(m);
+    }
+    cells[m] = 0;
+  }
+  return threats;
+}
+
+/// Thuật toán tìm chuỗi ép 4 liên tiếp kết liễu trận đấu (VCF Solver)
+int? _findVcf(Uint8List cells, int attacker, int maxDepth) {
+  final opp = 3 - attacker;
+  final cands = _candidates(cells);
+
+  // 1. Kiểm tra thắng ngay lập tức
+  for (final m in cands) {
+    _evalCell(cells, m, attacker);
+    if (_evMax >= _five || _evMax >= _openFour) return m;
+  }
+
+  // 2. Thử các nước tạo 4 kín ép đối thủ phải phòng thủ
+  for (final m in cands) {
+    _evalCell(cells, m, attacker);
+    if (_evMax < _closedFour) continue;
+
+    cells[m] = attacker;
+    final threats = _findThreatPoints(cells, attacker);
+
+    if (threats.length >= 2) {
+      cells[m] = 0;
+      return m;
+    }
+
+    if (threats.length == 1) {
+      final def = threats.first;
+      cells[def] = opp;
+
+      final oppWins = caroMakesWin(cells, def);
+      var win = false;
+      if (!oppWins && maxDepth > 1) {
+        win = _vcfDfs(cells, attacker, opp, maxDepth - 1);
+      }
+
+      cells[def] = 0;
+      cells[m] = 0;
+
+      if (win) return m;
+    } else {
+      cells[m] = 0;
+    }
+  }
+
+  return null;
+}
+
+bool _vcfDfs(Uint8List cells, int attacker, int opp, int depth) {
+  final cands = _candidates(cells);
+  for (final m in cands) {
+    _evalCell(cells, m, attacker);
+    if (_evMax >= _five || _evMax >= _openFour) return true;
+  }
+
+  if (depth <= 1) return false;
+
+  for (final m in cands) {
+    _evalCell(cells, m, attacker);
+    if (_evMax < _closedFour) continue;
+
+    cells[m] = attacker;
+    final threats = _findThreatPoints(cells, attacker);
+
+    if (threats.length >= 2) {
+      cells[m] = 0;
+      return true;
+    }
+
+    if (threats.length == 1) {
+      final def = threats.first;
+      cells[def] = opp;
+
+      final oppWins = caroMakesWin(cells, def);
+      var win = false;
+      if (!oppWins) {
+        win = _vcfDfs(cells, attacker, opp, depth - 1);
+      }
+
+      cells[def] = 0;
+      cells[m] = 0;
+
+      if (win) return true;
+    } else {
+      cells[m] = 0;
+    }
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Chọn nước đi chính thức
 // ---------------------------------------------------------------------------
 
 /// Chọn nước đi cho máy. Thuần Dart, đồng bộ — trong app gọi qua [runCaroAiInIsolate].
 int chooseCaroMove(CaroAiRequest req) {
   final cells = Uint8List.fromList(req.cells);
   final ai = req.aiPlayer, opp = 3 - ai;
+
+  // 1. Áp dụng Khai cuộc chuẩn (Opening Book) khi ở mức Khó
+  if (req.difficulty == Difficulty.hard) {
+    final bookMove = _checkOpeningBook(cells, ai);
+    if (bookMove != null && cells[bookMove] == 0) return bookMove;
+  }
+
   final cands = _candidates(cells);
   if (cands.length == 1) return cands.first;
+
+  // 2. Chạy VCF Solver cho cấp Khó: Nếu AI có đường ép Four thắng ngay lập tức
+  if (req.difficulty == Difficulty.hard) {
+    final vcfWin = _findVcf(cells, ai, 12);
+    if (vcfWin != null && cells[vcfWin] == 0) return vcfWin;
+  }
 
   final rng = Random(req.seed);
   final n = cands.length;
   final scores = List<int>.filled(n, 0);
-  var winAt = -1, blockAt = -1;
+
+  var win5At = -1;
+  var block5At = -1;
+  var winOpen4At = -1;
+  var blockOpen4At = -1;
+  var winDoubleThreatAt = -1;
+  var blockDoubleThreatAt = -1;
+
   for (var i = 0; i < n; i++) {
     final idx = cands[i];
     _evalCell(cells, idx, ai);
     final a = _evScore, am = _evMax;
     _evalCell(cells, idx, opp);
     final d = _evScore, dm = _evMax;
-    scores[i] = a + (d * 9) ~/ 10 + _centerBonus(idx);
-    if (am == _five) winAt = i;
-    if (dm == _five && (blockAt < 0 || scores[i] > scores[blockAt])) blockAt = i;
+
+    // Trọng số tấn công / phòng thủ theo độ khó
+    scores[i] = a + d + _centerBonus(idx);
+
+    // AI tạo 5 quân -> Thắng ngay
+    if (am == _five) win5At = i;
+
+    // Đối thủ tạo 5 quân -> Bắt buộc phải chặn
+    if (dm == _five && (block5At < 0 || scores[i] > scores[block5At])) {
+      block5At = i;
+    }
+
+    // AI tạo 4 mở -> Thắng chắc
+    if (am == _openFour && (winOpen4At < 0 || scores[i] > scores[winOpen4At])) {
+      winOpen4At = i;
+    }
+
+    // Đối thủ tạo 4 mở (tức đối thủ đang có 3 mở) -> CỰC KỲ NGUY HIỂM, PHẢI CHẶN NGAY
+    if (dm == _openFour && (blockOpen4At < 0 || scores[i] > scores[blockOpen4At])) {
+      blockOpen4At = i;
+    }
+
+    // Đòn đôi sát thủ (3-3 hoặc 4-3)
+    if (am >= _openFour && (winDoubleThreatAt < 0 || scores[i] > scores[winDoubleThreatAt])) {
+      winDoubleThreatAt = i;
+    }
+
+    // Chặn đòn đôi sát thủ của đối thủ
+    if (dm >= _openFour && (blockDoubleThreatAt < 0 || scores[i] > scores[blockDoubleThreatAt])) {
+      blockDoubleThreatAt = i;
+    }
   }
 
   final order = List<int>.generate(n, (i) => i)..sort((x, y) => scores[y].compareTo(scores[x]));
 
   final easy = req.difficulty == Difficulty.easy;
-  // Mức Dễ có 25% bỏ sót thắng/chặn.
   final applyTactics = !easy || rng.nextDouble() >= 0.25;
+
   if (applyTactics) {
-    if (winAt >= 0) return cands[winAt];
-    if (blockAt >= 0) return cands[blockAt];
+    // 1. Thắng ngay với 5 quân
+    if (win5At >= 0) return cands[win5At];
+
+    // 2. Chặn ngay đối thủ tạo 5 quân
+    if (block5At >= 0) return cands[block5At];
+
+    // Cấp Khó: Phòng thủ tuyệt đối và tấn công dứt điểm
+    if (req.difficulty == Difficulty.hard) {
+      // 3. AI tạo 4 mở (thắng không thể đỡ)
+      if (winOpen4At >= 0) return cands[winOpen4At];
+
+      // 4. BẮT BUỘC CHẶN 3 MỞ CỦA ĐỐI THỦ (nếu không đối thủ tạo 4 mở sẽ thắng)
+      if (blockOpen4At >= 0) {
+        return cands[blockOpen4At]; // Chặn ngay 3 mở của đối thủ!
+      }
+
+      // 5. Chặn chuỗi VCF của đối thủ
+      final oppVcf = _findVcf(cells, opp, 8);
+      if (oppVcf != null && cells[oppVcf] == 0) return oppVcf;
+
+      // 6. AI tạo đòn đôi 3-3 hoặc 4-3
+      if (winDoubleThreatAt >= 0) return cands[winDoubleThreatAt];
+
+      // 7. BẮT BUỘC CHẶN ĐÒN ĐÔI CỦA ĐỐI THỦ
+      if (blockDoubleThreatAt >= 0) return cands[blockDoubleThreatAt];
+    }
   }
 
   if (easy) {
@@ -249,7 +487,7 @@ int chooseCaroMove(CaroAiRequest req) {
     return cands[order[rng.nextInt(top)]];
   }
 
-  // Vừa: nước tốt nhất theo heuristic, hoà điểm thì chọn ngẫu nhiên.
+  // Vừa: nước tốt nhất theo heuristic
   final bestScore = scores[order.first];
   final ties = [
     for (final i in order)
@@ -258,7 +496,7 @@ int chooseCaroMove(CaroAiRequest req) {
   final heuristicBest = cands[ties[rng.nextInt(ties.length)]];
   if (req.difficulty == Difficulty.medium) return heuristicBest;
 
-  // Khó: minimax + alpha-beta, đào sâu dần trong ngân sách thời gian.
+  // Khó: minimax + alpha-beta, đào sâu dần trong ngân sách thời gian
   return _Search(cells, req.budgetMs).run(ai, heuristicBest);
 }
 
@@ -267,7 +505,7 @@ int chooseCaroMove(CaroAiRequest req) {
 // ---------------------------------------------------------------------------
 
 const int _inf = 10000000;
-const int _beam = 12;
+const int _beam = 14;
 
 final Int32List _windows = _buildWindows();
 
@@ -287,7 +525,7 @@ Int32List _buildWindows() {
   return Int32List.fromList(out);
 }
 
-const List<int> _winWeight = [0, 2, 14, 120, 1200, 100000];
+const List<int> _winWeight = [0, 5, 50, 1200, 200000, 10000000];
 
 class _Gen {
   final int win; // ô thắng ngay, hoặc -1
@@ -341,7 +579,7 @@ class _Search {
       _evalCell(cells, i, opp);
       final d = _evScore, dm = _evMax;
       if (dm == _five) blocks.add(i);
-      packed.add(((a + (d * 9) ~/ 10 + _centerBonus(i)) << 8) | i);
+      packed.add(((a + d + _centerBonus(i)) << 8) | i);
     }
     if (blocks.length >= 2) return const _Gen(-1, true, []);
     if (blocks.length == 1) return _Gen(-1, false, blocks);
@@ -401,7 +639,7 @@ class _Search {
     if (g.moves.length == 1) return g.moves.first;
     var result = g.moves.contains(fallback) ? fallback : g.moves.first;
     var rootMoves = List<int>.from(g.moves);
-    for (var depth = 2; depth <= 4; depth++) {
+    for (var depth = 2; depth <= 5; depth++) {
       var alpha = -_inf * 2;
       var best = -1, bestVal = -_inf * 2;
       for (final m in rootMoves) {
