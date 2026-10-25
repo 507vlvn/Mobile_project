@@ -205,19 +205,19 @@ class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
                     aspectRatio: 1,
                     child: Container(
                       margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.amber.shade300, width: 2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade300, width: 1),
                       ),
                       child: GridView.builder(
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: _logic.gridSize,
                           // Ghép xong: các mảnh khít lại thành tranh liền
-                          crossAxisSpacing: _logic.isCompleted ? 0 : 3,
-                          mainAxisSpacing: _logic.isCompleted ? 0 : 3,
+                          crossAxisSpacing: _logic.isCompleted ? 0 : 1.5,
+                          mainAxisSpacing: _logic.isCompleted ? 0 : 1.5,
                         ),
                         itemCount: _logic.pieces.length,
                         itemBuilder: (context, index) {
@@ -231,18 +231,18 @@ class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
                               foregroundDecoration: done
                                   ? null
                                   : BoxDecoration(
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
                                         color: isSelected
                                             ? Colors.red
                                             : (piece.isCorrect
                                                 ? Colors.lightGreenAccent.shade400
-                                                : Colors.white70),
-                                        width: isSelected ? 3.5 : (piece.isCorrect ? 2.5 : 1),
+                                                : Colors.white38),
+                                        width: isSelected ? 2 : (piece.isCorrect ? 1.5 : 0.5),
                                       ),
                                     ),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(done ? 0 : 6),
+                                borderRadius: BorderRadius.circular(done ? 0 : 4),
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
