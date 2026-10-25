@@ -10,7 +10,11 @@ class SlidingPuzzleLogic extends ChangeNotifier {
   int moves = 0;
   bool isCompleted = false;
 
-  SlidingPuzzleLogic({this.difficulty = GameDifficulty.easy}) {
+  /// Khác null: xáo theo seed (trận đua online — hai máy cùng seed ra cùng đề).
+  /// Null: xáo ngẫu nhiên như cũ.
+  final int? seed;
+
+  SlidingPuzzleLogic({this.difficulty = GameDifficulty.easy, this.seed}) {
     gridSize = difficulty.gridSize;
     initBoard();
   }
@@ -22,8 +26,10 @@ class SlidingPuzzleLogic extends ChangeNotifier {
 
     List<int> tileIds = List.generate(totalTiles, (index) => index);
 
+    // Giữ nguyên cách xáo này: trận đua online cần hai máy cùng seed ra cùng đề.
+    final rng = seed == null ? Random() : Random(seed);
     do {
-      tileIds.shuffle(Random());
+      tileIds.shuffle(rng);
     } while (!_isSolvable(tileIds) || _isSolved(tileIds));
 
     tiles = List.generate(totalTiles, (index) {
@@ -56,6 +62,15 @@ class SlidingPuzzleLogic extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  /// Tiến độ 0..100: phần trăm ô số (trừ ô trống) đang nằm đúng chỗ.
+  int get progressPercent {
+    final numbered = tiles.where((t) => !t.isEmpty);
+    final total = numbered.length;
+    if (total == 0) return 100;
+    if (isCompleted) return 100;
+    return numbered.where((t) => t.isCorrect).length * 100 ~/ total;
   }
 
   bool _canMove(int tileIndex, int emptyIndex) {

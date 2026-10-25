@@ -13,6 +13,7 @@ import 'core/services/score_reporter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'pvp/match_session.dart';
+import 'pvp/pvp_navigator.dart';
 import 'shell/main_shell.dart';
 import 'soduku/logic/sudoku_controller.dart';
 import 'soduku/logic/sudoku_learning_manager.dart';
@@ -90,6 +91,10 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: context.watch<ThemeController>().mode,
+      navigatorKey: appNavigatorKey,
+      scaffoldMessengerKey: appMessengerKey,
+      // Mở màn trận khi trận bắt đầu và hiện lời mời đấu ở mọi màn hình.
+      builder: (context, child) => PvpNavigator(child: child ?? const SizedBox.shrink()),
       home: const MainShell(),
     );
   }

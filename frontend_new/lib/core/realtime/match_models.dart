@@ -188,8 +188,7 @@ class MatchInfo {
       startedAt: _date(m['startedAtUtc']),
       you: _int(m['you']) ?? 0,
       players: [
-        for (final p in (m['players'] as List? ?? const []))
-          if (MatchPlayer.parse(p) case final x?) x,
+        for (final p in (m['players'] as List? ?? const [])) ?MatchPlayer.parse(p),
       ],
       caro: CaroState.parse(m['caro']),
       race: RaceState.parse(m['race']),

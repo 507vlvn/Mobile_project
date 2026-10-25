@@ -4,6 +4,7 @@ import '../core/theme/app_tokens.dart';
 import '../friends/friends_screen.dart';
 import '../hub/hub_screen.dart';
 import '../profile/profile_screen.dart';
+import '../pvp/pvp_lobby_screen.dart';
 
 /// Khung chính với thanh điều hướng dưới (5 mục, có icon + chữ):
 /// Trò chơi · Đối kháng · Xếp hạng · Bạn bè · Hồ sơ.
@@ -26,7 +27,7 @@ class _MainShellState extends State<MainShell> {
     // Các tab chưa có chức năng tạm hiện màn chờ.
     final pages = <Widget>[
       const HubScreen(),
-      const _ComingSoon(title: 'Đối kháng', icon: Icons.sports_mma_rounded),
+      const PvpLobbyScreen(),
       const _ComingSoon(title: 'Xếp hạng', icon: Icons.leaderboard_rounded),
       _friendsVisited
           ? FriendsScreen(active: _index == _friendsIndex)
