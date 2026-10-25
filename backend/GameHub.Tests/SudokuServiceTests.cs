@@ -47,6 +47,22 @@ public class SudokuServiceTests
             return Task.FromResult(true);
         }
 
+        public List<SudokuDifficultyStat> Stats { get; } = [];
+
+        public Task<List<SudokuDifficultyStat>> GetDifficultyStatsByUserIdAsync(int userId, CancellationToken ct = default)
+            => Task.FromResult(Stats.Where(s => s.UserId == userId).ToList());
+
+        public Task<SudokuDifficultyStat?> GetDifficultyStatAsync(int userId, int difficulty, CancellationToken ct = default)
+            => Task.FromResult(Stats.FirstOrDefault(s => s.UserId == userId && s.Difficulty == difficulty));
+
+        public Task UpsertDifficultyStatAsync(SudokuDifficultyStat stat, CancellationToken ct = default)
+        {
+            var idx = Stats.FindIndex(s => s.UserId == stat.UserId && s.Difficulty == stat.Difficulty);
+            if (idx >= 0) Stats[idx] = stat;
+            else Stats.Add(stat);
+            return Task.CompletedTask;
+        }
+
         public Task<int> SaveChangesAsync(CancellationToken ct = default) => Task.FromResult(1);
     }
 
@@ -144,5 +160,61 @@ public class SudokuServiceTests
 
         var retrievedAfterDelete = await service.GetSavedGameAsync(1, "CLASSIC");
         Assert.Null(retrievedAfterDelete);
+    }
+
+    [Fact]
+    public async Task DifficultyStats_RecordAndGet_WorksCorrectly()
+    {
+        var repo = new FakeSudokuRepository();
+        var service = new SudokuService(repo);
+
+        // Initially returns 4 difficulties with 0s
+        var initial = await service.GetDifficultyStatsAsync(userId: 1);
+        Assert.Equal(4, initial.Count);
+        Assert.Equal(1, initial[0].Difficulty);
+        Assert.Equal(0, initial[0].GamesStarted);
+
+        // Record game started on difficulty 2 (Medium)
+        var s1 = await service.RecordDifficultyStatAsync(1, new RecordSudokuStatRequest(
+            Difficulty: 2,
+            IsGameStarted: true,
+            IsWin: false,
+            ElapsedSeconds: 0,
+            Mistakes: 0
+        ));
+        Assert.Equal(1, s1.GamesStarted);
+        Assert.Equal(0, s1.GamesWon);
+
+        // Record win without mistakes in 120s
+        var s2 = await service.RecordDifficultyStatAsync(1, new RecordSudokuStatRequest(
+            Difficulty: 2,
+            IsGameStarted: false,
+            IsWin: true,
+            ElapsedSeconds: 120,
+            Mistakes: 0
+        ));
+        Assert.Equal(1, s2.GamesStarted);
+        Assert.Equal(1, s2.GamesWon);
+        Assert.Equal(1, s2.WinWithoutMistakes);
+        Assert.Equal(120, s2.BestTimeSeconds);
+        Assert.Equal(120, s2.TotalWinTimeSeconds);
+
+        // Record another win with 1 mistake in 90s (faster)
+        var s3 = await service.RecordDifficultyStatAsync(1, new RecordSudokuStatRequest(
+            Difficulty: 2,
+            IsGameStarted: false,
+            IsWin: true,
+            ElapsedSeconds: 90,
+            Mistakes: 1
+        ));
+        Assert.Equal(2, s3.GamesWon);
+        Assert.Equal(1, s3.WinWithoutMistakes); // Still 1
+        Assert.Equal(90, s3.BestTimeSeconds); // Faster best time
+        Assert.Equal(210, s3.TotalWinTimeSeconds);
+
+        // Get all stats
+        var allStats = await service.GetDifficultyStatsAsync(1);
+        Assert.Equal(4, allStats.Count);
+        Assert.Equal(2, allStats[1].GamesWon);
     }
 }

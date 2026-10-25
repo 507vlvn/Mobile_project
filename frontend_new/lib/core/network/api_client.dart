@@ -65,6 +65,34 @@ abstract interface class ApiClient {
   });
   Future<ChatMessage> sendMessage(int userId, String content);
   Future<void> markRead(int userId);
+
+  // ---- Sudoku ----
+  Future<SudokuProgressSummary> getSudokuProgress();
+  Future<UpdateSudokuProgressResponse> recordSudokuProgress({
+    required int level,
+    required int timeSpentSeconds,
+    int mistakes = 0,
+  });
+  Future<SudokuSavedGame?> getSudokuSavedGame({String mode = 'CLASSIC'});
+  Future<SudokuSavedGame> saveSudokuGame({
+    required String gameMode,
+    int? level,
+    required int difficulty,
+    required int seed,
+    required String boardCurrent,
+    String? notesData,
+    int mistakes = 0,
+    int elapsedSeconds = 0,
+  });
+  Future<bool> deleteSudokuSavedGame({String mode = 'CLASSIC'});
+  Future<List<DifficultyStats>> getSudokuDifficultyStats();
+  Future<DifficultyStats> recordSudokuDifficultyStat({
+    required int difficulty,
+    bool isGameStarted = false,
+    bool isWin = false,
+    int elapsedSeconds = 0,
+    int mistakes = 0,
+  });
 }
 
 class HttpApiClient implements ApiClient {
@@ -254,5 +282,97 @@ class HttpApiClient implements ApiClient {
   @override
   Future<void> markRead(int userId) async {
     await _send('POST', '/messages/with/$userId/read');
+  }
+
+  // ---- Sudoku ----
+  @override
+  Future<SudokuProgressSummary> getSudokuProgress() async =>
+      SudokuProgressSummary.fromJson(
+          _map(await _send('GET', '/sudoku/progress')));
+
+  @override
+  Future<UpdateSudokuProgressResponse> recordSudokuProgress({
+    required int level,
+    required int timeSpentSeconds,
+    int mistakes = 0,
+  }) async =>
+      UpdateSudokuProgressResponse.fromJson(_map(await _send(
+        'POST',
+        '/sudoku/progress',
+        body: {
+          'level': level,
+          'timeSpentSeconds': timeSpentSeconds,
+          'mistakes': mistakes,
+        },
+      )));
+
+  @override
+  Future<SudokuSavedGame?> getSudokuSavedGame({String mode = 'CLASSIC'}) async {
+    final d = await _send('GET', '/sudoku/saved-game', query: {'mode': mode});
+    if (d == null) return null;
+    return SudokuSavedGame.fromJson(_map(d));
+  }
+
+  @override
+  Future<SudokuSavedGame> saveSudokuGame({
+    required String gameMode,
+    int? level,
+    required int difficulty,
+    required int seed,
+    required String boardCurrent,
+    String? notesData,
+    int mistakes = 0,
+    int elapsedSeconds = 0,
+  }) async =>
+      SudokuSavedGame.fromJson(_map(await _send(
+        'POST',
+        '/sudoku/save-game',
+        body: {
+          'gameMode': gameMode,
+          if (level != null) 'level': level,
+          'difficulty': difficulty,
+          'seed': seed,
+          'boardCurrent': boardCurrent,
+          if (notesData != null) 'notesData': notesData,
+          'mistakes': mistakes,
+          'elapsedSeconds': elapsedSeconds,
+        },
+      )));
+
+  @override
+  Future<bool> deleteSudokuSavedGame({String mode = 'CLASSIC'}) async {
+    final d = await _send('DELETE', '/sudoku/saved-game', query: {'mode': mode});
+    if (d is Map && d['success'] == true) return true;
+    return false;
+  }
+
+  @override
+  Future<List<DifficultyStats>> getSudokuDifficultyStats() async {
+    final d = await _send('GET', '/sudoku/stats');
+    return [
+      for (final e in _list(d)) DifficultyStats.fromJson(_map(e)),
+    ];
+  }
+
+  @override
+  Future<DifficultyStats> recordSudokuDifficultyStat({
+    required int difficulty,
+    bool isGameStarted = false,
+    bool isWin = false,
+    int elapsedSeconds = 0,
+    int mistakes = 0,
+  }) async {
+    final d = await _send(
+      'POST',
+      '/sudoku/stats/record',
+      body: {
+        'difficulty': difficulty,
+        'isGameStarted': isGameStarted,
+        'isWin': isWin,
+        'elapsedSeconds': elapsedSeconds,
+        'mistakes': mistakes,
+      },
+    );
+    return DifficultyStats.fromJson(_map(d));
   }
 }

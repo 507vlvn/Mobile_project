@@ -194,4 +194,99 @@ public class SudokuService(ISudokuRepository repository) : ISudokuService
         }
         return result;
     }
+
+    #region Difficulty Stats
+
+    public async Task<List<DifficultyStatsDto>> GetDifficultyStatsAsync(int userId, CancellationToken ct = default)
+    {
+        var list = await repository.GetDifficultyStatsByUserIdAsync(userId, ct);
+        var map = list.ToDictionary(s => s.Difficulty);
+
+        var result = new List<DifficultyStatsDto>(4);
+        for (int diff = 1; diff <= 4; diff++)
+        {
+            if (map.TryGetValue(diff, out var stat))
+            {
+                result.Add(new DifficultyStatsDto(
+                    Difficulty: diff,
+                    GamesStarted: stat.GamesStarted,
+                    GamesWon: stat.GamesWon,
+                    WinWithoutMistakes: stat.WinWithoutMistakes,
+                    BestTimeSeconds: stat.BestTimeSeconds,
+                    TotalWinTimeSeconds: stat.TotalWinTimeSeconds
+                ));
+            }
+            else
+            {
+                result.Add(new DifficultyStatsDto(
+                    Difficulty: diff,
+                    GamesStarted: 0,
+                    GamesWon: 0,
+                    WinWithoutMistakes: 0,
+                    BestTimeSeconds: null,
+                    TotalWinTimeSeconds: 0
+                ));
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<DifficultyStatsDto> RecordDifficultyStatAsync(int userId, RecordSudokuStatRequest request, CancellationToken ct = default)
+    {
+        var diff = Math.Clamp(request.Difficulty, 1, 4);
+        var stat = await repository.GetDifficultyStatAsync(userId, diff, ct);
+
+        if (stat == null)
+        {
+            stat = new SudokuDifficultyStat
+            {
+                UserId = userId,
+                Difficulty = diff,
+                GamesStarted = 0,
+                GamesWon = 0,
+                WinWithoutMistakes = 0,
+                BestTimeSeconds = null,
+                TotalWinTimeSeconds = 0,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }
+
+        if (request.IsGameStarted)
+        {
+            stat.GamesStarted++;
+        }
+
+        if (request.IsWin)
+        {
+            stat.GamesWon++;
+            stat.TotalWinTimeSeconds += request.ElapsedSeconds;
+
+            if (request.Mistakes == 0)
+            {
+                stat.WinWithoutMistakes++;
+            }
+
+            if (!stat.BestTimeSeconds.HasValue || stat.BestTimeSeconds.Value == 0 || (request.ElapsedSeconds > 0 && request.ElapsedSeconds < stat.BestTimeSeconds.Value))
+            {
+                stat.BestTimeSeconds = request.ElapsedSeconds;
+            }
+        }
+
+        stat.UpdatedAt = DateTime.UtcNow;
+
+        await repository.UpsertDifficultyStatAsync(stat, ct);
+        await repository.SaveChangesAsync(ct);
+
+        return new DifficultyStatsDto(
+            Difficulty: stat.Difficulty,
+            GamesStarted: stat.GamesStarted,
+            GamesWon: stat.GamesWon,
+            WinWithoutMistakes: stat.WinWithoutMistakes,
+            BestTimeSeconds: stat.BestTimeSeconds,
+            TotalWinTimeSeconds: stat.TotalWinTimeSeconds
+        );
+    }
+
+    #endregion
 }
