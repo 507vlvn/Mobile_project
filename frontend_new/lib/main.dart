@@ -12,6 +12,7 @@ import 'core/services/api_score_reporter.dart';
 import 'core/services/score_reporter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'pvp/match_session.dart';
 import 'shell/main_shell.dart';
 import 'soduku/logic/sudoku_controller.dart';
 import 'soduku/logic/sudoku_learning_manager.dart';
@@ -54,6 +55,12 @@ Future<void> main() async {
   final realtime = SignalRRealtimeService(tokens: tokens);
   RealtimeLifecycle(service: realtime, auth: auth).attach();
 
+  // Đối kháng: trạng thái hàng chờ / lời mời / trận đấu dùng chung cho cả app.
+  final matchSession = MatchSession(realtime: realtime);
+  auth.addListener(() {
+    if (!auth.isAuthenticated) matchSession.reset();
+  });
+
   runApp(
     MultiProvider(
       providers: [
@@ -62,6 +69,7 @@ Future<void> main() async {
         ChangeNotifierProvider<AuthController>.value(value: auth),
         Provider<ScoreReporter>.value(value: reporter),
         ListenableProvider<RealtimeService>.value(value: realtime),
+        ChangeNotifierProvider<MatchSession>.value(value: matchSession),
       ],
       child: const MyApp(),
     ),
