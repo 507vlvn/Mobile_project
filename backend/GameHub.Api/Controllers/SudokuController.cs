@@ -64,8 +64,28 @@ public class SudokuController(ISudokuService sudokuService) : ApiControllerBase
         var deleted = await sudokuService.DeleteSavedGameAsync(CurrentUserId, mode, ct);
         if (!deleted)
         {
-            return NotFound(new { message = "Không tìm thấy ván chơi dở để xóa." });
+            return NotFound(new { success = false, message = "Không tìm thấy ván chơi dở để xóa." });
         }
-        return Ok(new { message = "Đã xóa ván chơi dở dang thành công." });
+        return Ok(new { success = true, message = "Đã xóa ván chơi dở dang thành công." });
+    }
+
+    // ==========================================
+    // 3. THỐNG KÊ THEO ĐỘ KHÓ (DIFFICULTY STATS)
+    // ==========================================
+
+    [HttpGet("stats")]
+    public async Task<ActionResult<List<DifficultyStatsDto>>> GetStats(CancellationToken ct)
+    {
+        var stats = await sudokuService.GetDifficultyStatsAsync(CurrentUserId, ct);
+        return Ok(stats);
+    }
+
+    [HttpPost("stats/record")]
+    public async Task<ActionResult<DifficultyStatsDto>> RecordStat(
+        [FromBody] RecordSudokuStatRequest request,
+        CancellationToken ct)
+    {
+        var stat = await sudokuService.RecordDifficultyStatAsync(CurrentUserId, request, ct);
+        return Ok(stat);
     }
 }

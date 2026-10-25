@@ -15,6 +15,7 @@ public class GameHubDbContext(DbContextOptions<GameHubDbContext> options) : DbCo
     public DbSet<GameMatch> Matches => Set<GameMatch>();
     public DbSet<SudokuProgress> SudokuProgresses => Set<SudokuProgress>();
     public DbSet<SudokuSavedGame> SudokuSavedGames => Set<SudokuSavedGame>();
+    public DbSet<SudokuDifficultyStat> SudokuDifficultyStats => Set<SudokuDifficultyStat>();
 
     // Trả về false nếu lưu bị trùng khoá hoặc lỗi ràng buộc dữ liệu.
     public async Task<bool> TrySaveAsync(CancellationToken ct = default)
@@ -212,6 +213,22 @@ public class GameHubDbContext(DbContextOptions<GameHubDbContext> options) : DbCo
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(x => new { x.UserId, x.GameMode }).IsUnique();
+        });
+
+        b.Entity<SudokuDifficultyStat>(e =>
+        {
+            e.ToTable("SudokuDifficultyStats").HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.Difficulty).HasColumnName("difficulty");
+            e.Property(x => x.GamesStarted).HasColumnName("games_started");
+            e.Property(x => x.GamesWon).HasColumnName("games_won");
+            e.Property(x => x.WinWithoutMistakes).HasColumnName("win_without_mistakes");
+            e.Property(x => x.BestTimeSeconds).HasColumnName("best_time_seconds");
+            e.Property(x => x.TotalWinTimeSeconds).HasColumnName("total_win_time_seconds");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.UserId, x.Difficulty }).IsUnique();
         });
     }
 }

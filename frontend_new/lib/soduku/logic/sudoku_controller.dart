@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/models.dart';
 import 'sudoku_generator.dart';
 import 'sudoku_learning_manager.dart';
 import 'sudoku_models.dart';
+import 'sudoku_stats_manager.dart';
 
 class SudokuController extends ChangeNotifier {
   static final SudokuController instance = SudokuController();
@@ -20,6 +25,9 @@ class SudokuController extends ChangeNotifier {
   int mistakes = 0;
   final int maxMistakes = 3;
 
+  int movesCount = 0;
+  int hintsUsed = 0;
+
   int elapsedSeconds = 0;
   Timer? _timer;
 
@@ -28,10 +36,34 @@ class SudokuController extends ChangeNotifier {
 
   int _totalBlanks = 0;
   int? _currentSeed;
+  int? _userId;
 
   SudokuController({SudokuDifficulty initialDifficulty = SudokuDifficulty.medium, int? seed}) {
     difficulty = initialDifficulty;
     _currentSeed = seed;
+  }
+
+  int? get currentSeed => _currentSeed;
+
+  /// Đổi tài khoản hoặc đăng xuất: làm mới hoàn toàn ván chơi để không lưu ván của người trước
+  void onUserChanged(int? newUserId) {
+    if (_userId != newUserId) {
+      _userId = newUserId;
+      resetToNewGame();
+    }
+  }
+
+  /// Khởi tạo lại một ván cờ hoàn toàn mới (chưa bắt đầu đếm giờ)
+  void resetToNewGame({SudokuDifficulty? difficulty}) {
+    stopTimer();
+    currentLearningLevel = null;
+    if (difficulty != null) this.difficulty = difficulty;
+    _currentSeed = Random().nextInt(899999) + 100000;
+    final puzzleData = SudokuGenerator.generate(
+      difficulty: this.difficulty,
+      seed: _currentSeed,
+    );
+    _initBoardWithPuzzle(puzzleData, autoStartTimer: false);
   }
 
   bool get isLearningMode => currentLearningLevel != null;
@@ -48,6 +80,26 @@ class SudokuController extends ChangeNotifier {
     return '$m:$s';
   }
 
+  int get difficultyNumeric {
+    return switch (difficulty) {
+      SudokuDifficulty.easy => 1,
+      SudokuDifficulty.medium => 2,
+      SudokuDifficulty.hard => 3,
+      SudokuDifficulty.expert => 4,
+      _ => 2,
+    };
+  }
+
+  static SudokuDifficulty difficultyFromNumeric(int num) {
+    return switch (num) {
+      1 => SudokuDifficulty.easy,
+      2 => SudokuDifficulty.medium,
+      3 => SudokuDifficulty.hard,
+      4 => SudokuDifficulty.expert,
+      _ => SudokuDifficulty.medium,
+    };
+  }
+
   void startNewGame({
     SudokuDifficulty? difficulty,
     int? seed,
@@ -55,12 +107,16 @@ class SudokuController extends ChangeNotifier {
   }) {
     currentLearningLevel = null;
     if (difficulty != null) this.difficulty = difficulty;
-    _currentSeed = seed;
+    _currentSeed = seed ?? (Random().nextInt(899999) + 100000);
 
     final puzzleData = SudokuGenerator.generate(
       difficulty: this.difficulty,
-      seed: seed,
+      seed: _currentSeed,
     );
+
+    if (autoStartTimer) {
+      SudokuStatsManager.instance.recordGameStarted(difficultyNumeric);
+    }
 
     _initBoardWithPuzzle(puzzleData, autoStartTimer: autoStartTimer);
   }
@@ -101,6 +157,8 @@ class SudokuController extends ChangeNotifier {
     selectedRow = null;
     selectedCol = null;
     mistakes = 0;
+    movesCount = 0;
+    hintsUsed = 0;
     elapsedSeconds = 0;
     isNotesMode = false;
     _history.clear();
@@ -140,15 +198,15 @@ class SudokuController extends ChangeNotifier {
   }
 
   void pauseTimer() {
-    stopTimer();
     if (status == SudokuStatus.playing) {
       status = SudokuStatus.paused;
+      stopTimer();
       notifyListeners();
     }
   }
 
   void resumeTimer() {
-    if (status == SudokuStatus.paused || status == SudokuStatus.notStarted) {
+    if (status == SudokuStatus.paused) {
       status = SudokuStatus.playing;
       _startTimer();
       notifyListeners();
@@ -164,6 +222,9 @@ class SudokuController extends ChangeNotifier {
   }
 
   void selectCell(int r, int c) {
+    if (status == SudokuStatus.paused) {
+      resumeTimer();
+    }
     if (status != SudokuStatus.playing) return;
     selectedRow = r;
     selectedCol = c;
@@ -175,14 +236,14 @@ class SudokuController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Nhập số 1-9 vào ô được chọn
   void inputNumber(int number) {
     if (status != SudokuStatus.playing) return;
     if (selectedRow == null || selectedCol == null) return;
 
     final cell = board[selectedRow!][selectedCol!];
     if (cell.isGiven) return;
-    if (cell.value == cell.solution && !cell.isError) return;
+
+    movesCount++;
 
     if (isNotesMode) {
       final oldNotes = Set<int>.from(cell.notes);
@@ -207,13 +268,10 @@ class SudokuController extends ChangeNotifier {
       return;
     }
 
+    if (cell.value == number) return;
+
     final oldValue = cell.value;
     final oldNotes = Set<int>.from(cell.notes);
-
-    if (cell.value == number) {
-      return;
-    }
-
     final isCorrect = number == cell.solution;
 
     _history.add(SudokuMove(
@@ -236,7 +294,11 @@ class SudokuController extends ChangeNotifier {
         status = SudokuStatus.won;
         stopTimer();
         if (isLearningMode) {
-          SudokuLearningManager.instance.recordWin(currentLearningLevel!, elapsedSeconds);
+          SudokuLearningManager.instance.recordWin(
+            currentLearningLevel!,
+            elapsedSeconds,
+            mistakes: mistakes,
+          );
         }
       }
     } else {
@@ -283,7 +345,7 @@ class SudokuController extends ChangeNotifier {
 
     cell.value = lastMove.oldValue;
     cell.notes = Set<int>.from(lastMove.oldNotes);
-    cell.isError = cell.value != 0 && cell.value != cell.solution;
+    cell.isError = (cell.value != 0 && cell.value != cell.solution);
 
     selectedRow = lastMove.row;
     selectedCol = lastMove.col;
@@ -295,8 +357,9 @@ class SudokuController extends ChangeNotifier {
     if (selectedRow == null || selectedCol == null) return;
 
     final cell = board[selectedRow!][selectedCol!];
-    if (cell.isGiven || (cell.value == cell.solution && !cell.isError)) return;
+    if (cell.isGiven || cell.value == cell.solution) return;
 
+    hintsUsed++;
     inputNumber(cell.solution);
   }
 
@@ -325,6 +388,120 @@ class SudokuController extends ChangeNotifier {
       }
     }
     return true;
+  }
+
+  // ==========================================
+  // SERIALIZE & DATABASE RESUME
+  // ==========================================
+
+  String serializeBoardCurrent() {
+    final buffer = StringBuffer();
+    for (int r = 0; r < 9; r++) {
+      for (int c = 0; c < 9; c++) {
+        buffer.write(board[r][c].value);
+      }
+    }
+    return buffer.toString();
+  }
+
+  String? serializeNotesData() {
+    final map = <String, List<int>>{};
+    for (int r = 0; r < 9; r++) {
+      for (int c = 0; c < 9; c++) {
+        if (board[r][c].notes.isNotEmpty) {
+          map['${r}_$c'] = board[r][c].notes.toList();
+        }
+      }
+    }
+    if (map.isEmpty) return null;
+    return jsonEncode(map);
+  }
+
+  void restoreFromSavedGame(SudokuSavedGame saved) {
+    currentLearningLevel = saved.level;
+    difficulty = difficultyFromNumeric(saved.difficulty);
+    _currentSeed = saved.seed;
+
+    final puzzleData = isLearningMode
+        ? SudokuGenerator.generate(
+            customClues: SudokuLearningManager.getCluesForLevel(currentLearningLevel!),
+            seed: _currentSeed,
+          )
+        : SudokuGenerator.generate(
+            difficulty: difficulty,
+            seed: _currentSeed,
+          );
+
+    _initBoardWithPuzzle(puzzleData, autoStartTimer: false);
+
+    // Điền lại trạng thái các ô đã chơi
+    if (saved.boardCurrent.length == 81) {
+      for (int r = 0; r < 9; r++) {
+        for (int c = 0; c < 9; c++) {
+          final charVal = int.tryParse(saved.boardCurrent[r * 9 + c]) ?? 0;
+          if (!board[r][c].isGiven) {
+            board[r][c].value = charVal;
+            board[r][c].isError = (charVal != 0 && charVal != board[r][c].solution);
+          }
+        }
+      }
+    }
+
+    // Khôi phục ghi chú bút chì
+    if (saved.notesData != null && saved.notesData!.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(saved.notesData!) as Map<String, dynamic>;
+        decoded.forEach((key, val) {
+          final parts = key.split('_');
+          if (parts.length == 2) {
+            final r = int.tryParse(parts[0]);
+            final c = int.tryParse(parts[1]);
+            if (r != null && c != null && r >= 0 && r < 9 && c >= 0 && c < 9) {
+              if (val is List) {
+                board[r][c].notes = val.cast<int>().toSet();
+              }
+            }
+          }
+        });
+      } catch (_) {}
+    }
+
+    mistakes = saved.mistakes;
+    elapsedSeconds = saved.elapsedSeconds;
+    status = SudokuStatus.paused;
+    notifyListeners();
+  }
+
+  /// Lưu trạng thái ván cờ hiện tại lên Database
+  Future<void> saveGameToServer(ApiClient api) async {
+    if (board.isEmpty || status == SudokuStatus.won || status == SudokuStatus.lost) {
+      return;
+    }
+    try {
+      await api.saveSudokuGame(
+        gameMode: isLearningMode ? 'LEARNING' : 'CLASSIC',
+        level: currentLearningLevel,
+        difficulty: difficultyNumeric,
+        seed: _currentSeed ?? 12345,
+        boardCurrent: serializeBoardCurrent(),
+        notesData: serializeNotesData(),
+        mistakes: mistakes,
+        elapsedSeconds: elapsedSeconds,
+      );
+    } catch (e) {
+      debugPrint('Lỗi lưu ván Sudoku lên Database: $e');
+    }
+  }
+
+  /// Xóa ván cờ dở dang trên Database khi hoàn thành hoặc bắt đầu lại
+  Future<void> deleteGameFromServer(ApiClient api) async {
+    try {
+      await api.deleteSudokuSavedGame(
+        mode: isLearningMode ? 'LEARNING' : 'CLASSIC',
+      );
+    } catch (e) {
+      debugPrint('Lỗi xóa ván Sudoku trên Database: $e');
+    }
   }
 
   double get progressPercent {

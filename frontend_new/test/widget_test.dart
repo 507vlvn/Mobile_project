@@ -184,6 +184,22 @@ class _FakeApi implements ApiClient {
         pageSize: 20,
         total: 1,
       );
+
+  @override
+  Future<List<DifficultyStats>> getSudokuDifficultyStats() async => [];
+
+  @override
+  Future<DifficultyStats> recordSudokuDifficultyStat({
+    required int difficulty,
+    bool isGameStarted = false,
+    bool isWin = false,
+    int elapsedSeconds = 0,
+    int mistakes = 0,
+  }) async =>
+      DifficultyStats(difficulty: difficulty);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Future<AuthController> _pumpApp(WidgetTester tester, {bool loggedIn = false, _FakeApi? fake}) async {

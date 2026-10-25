@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/network/api_client.dart';
 import '../logic/sudoku_learning_manager.dart';
 import 'crossmath_screen.dart';
 
@@ -15,8 +17,12 @@ class _SudokuLearningScreenState extends State<SudokuLearningScreen> {
   @override
   void initState() {
     super.initState();
-    _learningManager.init().then((_) {
-      if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final api = context.read<ApiClient>();
+      _learningManager.init(api: api).then((_) {
+        if (mounted) setState(() {});
+      });
     });
     _learningManager.addListener(_onUpdate);
   }

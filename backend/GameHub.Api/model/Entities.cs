@@ -171,3 +171,17 @@ public class SudokuSavedGame
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public User User { get; set; } = null!;
 }
+
+public class SudokuDifficultyStat
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public int Difficulty { get; set; } // 1: Dễ, 2: Trung bình, 3: Khó, 4: Chuyên gia
+    public int GamesStarted { get; set; }
+    public int GamesWon { get; set; }
+    public int WinWithoutMistakes { get; set; }
+    public int? BestTimeSeconds { get; set; }
+    public int TotalWinTimeSeconds { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public User User { get; set; } = null!;
+}

@@ -13,6 +13,9 @@ import 'core/services/score_reporter.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'shell/main_shell.dart';
+import 'soduku/logic/sudoku_controller.dart';
+import 'soduku/logic/sudoku_learning_manager.dart';
+import 'soduku/logic/sudoku_stats_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,8 +28,26 @@ Future<void> main() async {
   api.onUnauthorized = auth.handleUnauthorized;
   final reporter =
       ApiScoreReporter(api: api, isLoggedIn: () => auth.isAuthenticated);
-  // Sau khi đăng nhập/khôi phục phiên: gửi dần các điểm đang xếp hàng
-  auth.onSignedIn = () => unawaited(reporter.flushQueue());
+  // Kết nối API cho tiến trình và thống kê Sudoku
+  SudokuLearningManager.instance.attachApi(api);
+  SudokuStatsManager.instance.attachApi(api);
+  unawaited(SudokuLearningManager.instance.init(api: api));
+  unawaited(SudokuStatsManager.instance.init(api: api));
+
+  // Tự động chuyển đổi tiến trình và làm mới ván cờ theo từng tài khoản (hoặc khi đăng xuất)
+  auth.addListener(() {
+    final uid = auth.currentUser?.userId;
+    unawaited(SudokuLearningManager.instance.switchUser(uid));
+    SudokuController.instance.onUserChanged(uid);
+    unawaited(SudokuStatsManager.instance.switchUser(uid));
+  });
+
+  // Sau khi đăng nhập/khôi phục phiên: gửi dần các điểm đang xếp hàng và đồng bộ Sudoku
+  auth.onSignedIn = () {
+    unawaited(reporter.flushQueue());
+    unawaited(SudokuLearningManager.instance.syncWithServer());
+    unawaited(SudokuStatsManager.instance.syncWithServer());
+  };
 
   // Realtime (SignalR): tự kết nối khi đăng nhập, ngắt khi đăng xuất hoặc khi
   // app ở nền quá 2 phút. Còn kết nối thì server mới báo mình "online" với bạn bè.

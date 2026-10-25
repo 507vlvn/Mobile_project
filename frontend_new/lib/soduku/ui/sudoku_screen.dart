@@ -1,6 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/models/difficulty.dart';
+import '../../core/network/api_client.dart';
+import '../../core/services/score_reporter.dart';
 import '../logic/sudoku_controller.dart';
 import '../logic/sudoku_models.dart';
+import '../logic/sudoku_stats_manager.dart';
 import 'sudoku_board.dart';
 import 'sudoku_keypad.dart';
 
@@ -23,6 +29,7 @@ class SudokuScreen extends StatefulWidget {
 class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver {
   late final SudokuController _controller;
   late final bool _isExternalController;
+  bool _hasReportedOutcome = false;
 
   @override
   void initState() {
@@ -50,9 +57,18 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Tự động dừng thời gian khi ẩn app, tắt màn hình hoặc chuyển ứng dụng khác
+    // Tự động dừng thời gian và lưu lại ván cờ khi ẩn app hoặc chuyển ứng dụng
     if (state != AppLifecycleState.resumed) {
       _controller.pauseTimer();
+      _saveCurrentGame();
+    }
+  }
+
+  void _saveCurrentGame() {
+    if (!mounted) return;
+    if (_controller.hasOngoingGame && !_hasReportedOutcome) {
+      final api = context.read<ApiClient>();
+      unawaited(_controller.saveGameToServer(api));
     }
   }
 
@@ -61,18 +77,48 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     setState(() {});
 
     if (_controller.status == SudokuStatus.won) {
+      if (!_hasReportedOutcome) {
+        _hasReportedOutcome = true;
+        _reportOutcome(isWin: true);
+      }
       _showEndGameDialog(
         title: '🎉 Chúc Mừng Chiến Thắng!',
         message: 'Bạn đã hoàn thành bảng Sudoku xuất sắc!',
         isWin: true,
       );
     } else if (_controller.status == SudokuStatus.lost) {
+      if (!_hasReportedOutcome) {
+        _hasReportedOutcome = true;
+        _reportOutcome(isWin: false);
+      }
       _showEndGameDialog(
         title: '💔 Thua Cuộc',
         message: 'Bạn đã phạm quá ${_controller.maxMistakes} lỗi.',
         isWin: false,
       );
     }
+  }
+
+  void _reportOutcome({required bool isWin}) {
+    if (isWin) {
+      SudokuStatsManager.instance.recordGameWon(
+        _controller.difficultyNumeric,
+        _controller.elapsedSeconds,
+        mistakes: _controller.mistakes,
+      );
+    }
+    final reporter = context.read<ScoreReporter>();
+    final api = context.read<ApiClient>();
+    reporter.submit(GameRecord(
+      gameCode: 'SUDOKU',
+      difficulty: Difficulty.fromValue(_controller.difficultyNumeric),
+      timeSeconds: _controller.elapsedSeconds,
+      mistakes: _controller.mistakes,
+      moves: _controller.movesCount,
+      hints: _controller.hintsUsed,
+      outcome: isWin ? GameOutcome.completed : GameOutcome.lose,
+    ));
+    _controller.deleteGameFromServer(api);
   }
 
   void _showEndGameDialog({
@@ -164,6 +210,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
+              _hasReportedOutcome = false;
               _controller.restartCurrentGame();
             },
             child: Text('Chơi lại', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
@@ -171,6 +218,7 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
+              _hasReportedOutcome = false;
               _controller.startNewGame();
             },
             style: ElevatedButton.styleFrom(
@@ -214,6 +262,9 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
+              _hasReportedOutcome = false;
+              final api = context.read<ApiClient>();
+              _controller.deleteGameFromServer(api);
               _controller.startNewGame();
             },
             style: ElevatedButton.styleFrom(
@@ -230,8 +281,8 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Dừng thời gian ngay khi thoát khỏi màn hình chơi
     _controller.pauseTimer();
+    _saveCurrentGame();
     _controller.removeListener(_onGameStateChanged);
     if (!_isExternalController) {
       _controller.dispose();
@@ -247,8 +298,8 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, _) {
-        // Dừng thời gian khi nhấn Back cử chỉ hoặc nút Back của thiết bị
         _controller.pauseTimer();
+        _saveCurrentGame();
       },
       child: Scaffold(
         backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../auth/auth_controller.dart';
+import '../../core/network/api_client.dart';
 import '../logic/sudoku_controller.dart';
 import '../logic/sudoku_models.dart';
 import 'sudoku_learning_screen.dart';
 import 'sudoku_screen.dart';
+import 'sudoku_stats_view.dart';
 
 class SudokuHomeScreen extends StatefulWidget {
   const SudokuHomeScreen({super.key});
@@ -26,6 +30,28 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
         autoStartTimer: false,
       );
     }
+
+    // Tải ván cờ dở dang từ Database nếu có
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        final auth = context.read<AuthController>();
+        if (!auth.isAuthenticated) {
+          // Khách / Chưa đăng nhập: làm mới ván cờ, tuyệt đối không lấy từ tài khoản trước
+          _controller.onUserChanged(null);
+          return;
+        }
+
+        final api = context.read<ApiClient>();
+        _controller.onUserChanged(auth.currentUser?.userId);
+        final saved = await api.getSudokuSavedGame(mode: 'CLASSIC');
+        if (saved != null && mounted) {
+          _controller.restoreFromSavedGame(saved);
+        } else if (mounted) {
+          _controller.resetToNewGame();
+        }
+      } catch (_) {}
+    });
   }
 
   @override
@@ -53,6 +79,11 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
   }
 
   void _startNewGame(SudokuDifficulty difficulty) {
+    try {
+      final api = context.read<ApiClient>();
+      _controller.deleteGameFromServer(api);
+    } catch (_) {}
+
     _controller.startNewGame(difficulty: difficulty);
     Navigator.push(
       context,
@@ -189,55 +220,61 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
     final ongoingDifficulty = _controller.difficulty.label;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF9FBFE),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Thanh công cụ trên cùng (Mũi tên quay lại, Cúp giải thưởng, Cài đặt)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Mũi tên quay lại
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
-                    color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
-                    tooltip: 'Quay lại',
-                    onPressed: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.emoji_events_outlined, size: 26),
-                        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
-                        tooltip: 'Giải đấu',
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.settings_outlined, size: 26),
-                        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
-                        tooltip: 'Cài đặt',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+    return PopScope(
+      canPop: _selectedNavIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _selectedNavIndex != 0) {
+          setState(() => _selectedNavIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF9FBFE),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: _selectedNavIndex == 2
+                    ? SudokuStatsView(
+                        embedded: true,
+                        onBack: () => setState(() => _selectedNavIndex = 0),
+                        showBackButton: false,
+                      )
+                    : Column(
+                        children: [
+                          // Thanh công cụ trên cùng (Mũi tên quay lại, Cúp giải thưởng)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Mũi tên quay lại
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
+                                  color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                                  tooltip: 'Quay lại',
+                                  onPressed: () {
+                                    if (Navigator.canPop(context)) {
+                                      Navigator.pop(context);
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  onPressed: () {},
+                                  icon: const Icon(Icons.emoji_events_outlined, size: 26),
+                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+                                  tooltip: 'Giải đấu',
+                                ),
+                              ],
+                            ),
+                          ),
 
-            // Phần thân cuộn được
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  children: [
+                          // Phần thân cuộn được
+                          Expanded(
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Column(
+                                children: [
                     // Hàng Thẻ Sự Kiện (Event Cards Carousel)
                     SizedBox(
                       height: 190,
@@ -492,10 +529,14 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                 ),
               ),
             ),
-
-            // Thanh điều hướng đáy (Chính, Thử thách, Thống kê)
-            _buildBottomNav(isDark),
           ],
+        ),
+      ),
+
+              // Thanh điều hướng đáy (Chính, Thử thách, Thống kê)
+              _buildBottomNav(isDark),
+            ],
+          ),
         ),
       ),
     );
