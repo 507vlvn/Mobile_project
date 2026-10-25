@@ -472,3 +472,173 @@ class MatchHistoryItem {
         endedAt: j['endedAt'] == null ? null : parseServerDate(j['endedAt']),
       );
 }
+
+// ------------------------------------------------------------ Sudoku
+
+/// Tiến trình 1 level học tập (khớp SudokuLevelDto).
+class SudokuLevelProgress {
+  final int level;
+  final int clues;
+  final bool isUnlocked;
+  final int? bestTimeSeconds;
+  final DateTime? completedAt;
+
+  const SudokuLevelProgress({
+    required this.level,
+    required this.clues,
+    required this.isUnlocked,
+    this.bestTimeSeconds,
+    this.completedAt,
+  });
+
+  bool get isCompleted => bestTimeSeconds != null;
+
+  factory SudokuLevelProgress.fromJson(Map<String, dynamic> j) =>
+      SudokuLevelProgress(
+        level: j['level'] as int,
+        clues: (j['clues'] as int?) ?? 0,
+        isUnlocked: (j['isUnlocked'] as bool?) ?? false,
+        bestTimeSeconds: j['bestTimeSeconds'] as int?,
+        completedAt:
+            j['completedAt'] == null ? null : parseServerDate(j['completedAt']),
+      );
+}
+
+/// Tổng quan tiến trình học tập (khớp SudokuProgressSummaryDto).
+class SudokuProgressSummary {
+  final int completedCount;
+  final int highestUnlockedLevel;
+  final List<SudokuLevelProgress> levels;
+
+  const SudokuProgressSummary({
+    required this.completedCount,
+    required this.highestUnlockedLevel,
+    required this.levels,
+  });
+
+  factory SudokuProgressSummary.fromJson(Map<String, dynamic> j) =>
+      SudokuProgressSummary(
+        completedCount: (j['completedCount'] as int?) ?? 0,
+        highestUnlockedLevel: (j['highestUnlockedLevel'] as int?) ?? 1,
+        levels: [
+          for (final e in (j['levels'] as List? ?? const []))
+            SudokuLevelProgress.fromJson((e as Map).cast<String, dynamic>()),
+        ],
+      );
+}
+
+/// Phản hồi khi cập nhật level (khớp UpdateSudokuProgressResponse).
+class UpdateSudokuProgressResponse {
+  final bool isNewBest;
+  final int level;
+  final int bestTimeSeconds;
+  final int nextUnlockedLevel;
+  final String message;
+
+  const UpdateSudokuProgressResponse({
+    required this.isNewBest,
+    required this.level,
+    required this.bestTimeSeconds,
+    required this.nextUnlockedLevel,
+    required this.message,
+  });
+
+  factory UpdateSudokuProgressResponse.fromJson(Map<String, dynamic> j) =>
+      UpdateSudokuProgressResponse(
+        isNewBest: (j['isNewBest'] as bool?) ?? false,
+        level: (j['level'] as int?) ?? 1,
+        bestTimeSeconds: (j['bestTimeSeconds'] as int?) ?? 0,
+        nextUnlockedLevel: (j['nextUnlockedLevel'] as int?) ?? 1,
+        message: (j['message'] as String?) ?? '',
+      );
+}
+
+/// Ván cờ dở dang (khớp SudokuSavedGameDto).
+class SudokuSavedGame {
+  final int id;
+  final String gameMode;
+  final int? level;
+  final int difficulty;
+  final int seed;
+  final String boardCurrent;
+  final String? notesData;
+  final int mistakes;
+  final int elapsedSeconds;
+  final DateTime? updatedAt;
+
+  const SudokuSavedGame({
+    required this.id,
+    required this.gameMode,
+    this.level,
+    required this.difficulty,
+    required this.seed,
+    required this.boardCurrent,
+    this.notesData,
+    required this.mistakes,
+    required this.elapsedSeconds,
+    this.updatedAt,
+  });
+
+  factory SudokuSavedGame.fromJson(Map<String, dynamic> j) => SudokuSavedGame(
+        id: (j['id'] as int?) ?? 0,
+        gameMode: (j['gameMode'] as String?) ?? 'CLASSIC',
+        level: j['level'] as int?,
+        difficulty: (j['difficulty'] as int?) ?? 2,
+        seed: (j['seed'] as num?)?.toInt() ?? 0,
+        boardCurrent: (j['boardCurrent'] as String?) ?? '',
+        notesData: j['notesData'] as String?,
+        mistakes: (j['mistakes'] as int?) ?? 0,
+        elapsedSeconds: (j['elapsedSeconds'] as int?) ?? 0,
+        updatedAt:
+            j['updatedAt'] == null ? null : parseServerDate(j['updatedAt']),
+      );
+}
+
+/// Thống kê Sudoku theo độ khó (Dễ, Trung bình, Khó, Chuyên gia).
+class DifficultyStats {
+  final int difficulty; // 1: Dễ, 2: Trung bình, 3: Khó, 4: Chuyên gia
+  int gamesStarted;
+  int gamesWon;
+  int winWithoutMistakes;
+  int? bestTimeSeconds;
+  int totalWinTimeSeconds;
+
+  DifficultyStats({
+    required this.difficulty,
+    this.gamesStarted = 0,
+    this.gamesWon = 0,
+    this.winWithoutMistakes = 0,
+    this.bestTimeSeconds,
+    this.totalWinTimeSeconds = 0,
+  });
+
+  double get winRate => gamesStarted == 0 ? 0.0 : (gamesWon / gamesStarted) * 100;
+
+  String get winRateFormatted => '${winRate.toStringAsFixed(0)}%';
+
+  String get bestTimeFormatted {
+    if (bestTimeSeconds == null || bestTimeSeconds == 0) return '-';
+    final m = (bestTimeSeconds! ~/ 60).toString().padLeft(2, '0');
+    final s = (bestTimeSeconds! % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Map<String, dynamic> toJson() => {
+        'difficulty': difficulty,
+        'gamesStarted': gamesStarted,
+        'gamesWon': gamesWon,
+        'winWithoutMistakes': winWithoutMistakes,
+        'bestTimeSeconds': bestTimeSeconds,
+        'totalWinTimeSeconds': totalWinTimeSeconds,
+      };
+
+  factory DifficultyStats.fromJson(Map<String, dynamic> j) => DifficultyStats(
+        difficulty: (j['difficulty'] as int?) ?? 1,
+        gamesStarted: (j['gamesStarted'] as int?) ?? 0,
+        gamesWon: (j['gamesWon'] as int?) ?? 0,
+        winWithoutMistakes: (j['winWithoutMistakes'] as int?) ?? 0,
+        bestTimeSeconds: j['bestTimeSeconds'] as int?,
+        totalWinTimeSeconds: (j['totalWinTimeSeconds'] as int?) ?? 0,
+      );
+}
+

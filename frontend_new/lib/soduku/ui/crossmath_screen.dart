@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/models/difficulty.dart';
+import '../../core/services/score_reporter.dart';
 import '../logic/crossmath_models.dart';
 import '../logic/crossmath_levels.dart';
 import '../logic/sudoku_learning_manager.dart';
@@ -152,10 +155,16 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
         _isCompleted = true;
         _timer?.cancel();
 
-        // Lưu kỷ lục chiến thắng
-        SudokuLearningManager.instance.recordWin(_currentLevel, _seconds);
+        final oldBest = SudokuLearningManager.instance.getBestTimeForLevel(_currentLevel);
 
-        _showWinDialog();
+        // Lưu và đồng bộ kỷ lục chiến thắng lên Database
+        SudokuLearningManager.instance.recordWin(_currentLevel, _seconds).then((isNewBest) {
+          if (!mounted) return;
+          _showWinDialog(oldBest: oldBest, isNewBest: isNewBest);
+        });
+
+        // Nộp lịch sử ván chơi lên server
+        _reportCrossMathScore();
       } else if (!allCorrect) {
         // Báo lỗi nhẹ nếu điền hết nhưng chưa đúng
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,34 +184,53 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Bỏ qua màn này?'),
-        content: const Text('Bạn có muốn mở khóa và chuyển sang màn tiếp theo không?'),
+        content: Text(
+          'Màn $_currentLevel chưa hoàn thành sẽ tiếp tục BỊ KHÓA, không được cập nhật thời gian và chưa thể mở khóa màn tiếp theo.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Ở lại'),
+            child: const Text('Ở lại chơi tiếp'),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              SudokuLearningManager.instance.recordWin(_currentLevel, _seconds > 0 ? _seconds : 60);
-              if (_currentLevel < SudokuLearningManager.totalLevels) {
-                _initLevel(_currentLevel + 1);
-              } else {
-                Navigator.pop(context);
-              }
+              Navigator.pop(context); // Thoát ra màn hình chọn level, KHÔNG mở khóa và KHÔNG cập nhật thời gian
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E88E5),
+              backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Bỏ qua'),
+            child: const Text('Bỏ qua và Thoát'),
           ),
         ],
       ),
     );
   }
 
-  void _showWinDialog() {
+  void _reportCrossMathScore() {
+    try {
+      final reporter = context.read<ScoreReporter>();
+      final difficulty = _currentLevel <= 10
+          ? Difficulty.easy
+          : (_currentLevel <= 20 ? Difficulty.medium : Difficulty.hard);
+      reporter.submit(GameRecord(
+        gameCode: 'SUDOKU',
+        difficulty: difficulty,
+        timeSeconds: _seconds,
+        mistakes: 0,
+        moves: _levelData.cells.where((c) => c.isBlank).length,
+        outcome: GameOutcome.completed,
+      ));
+    } catch (_) {}
+  }
+
+  void _showWinDialog({int? oldBest, bool isNewBest = false}) {
+    final bestTime = SudokuLearningManager.instance.getBestTimeForLevel(_currentLevel) ?? _seconds;
+    final bestM = (bestTime ~/ 60).toString().padLeft(2, '0');
+    final bestS = (bestTime % 60).toString().padLeft(2, '0');
+    final bestFormatted = '$bestM:$bestS';
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -214,8 +242,8 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
+              decoration: const BoxDecoration(
+                color: Color(0xFFECFDF5),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -239,25 +267,76 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
             ),
+            if (isNewBest) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 16, color: Color(0xFFD97706)),
+                    SizedBox(width: 4),
+                    Text(
+                      'KỶ LỤC MỚI!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFD97706),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  const Icon(Icons.access_time_rounded, size: 18, color: Color(0xFF64748B)),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Thời gian: $_timeFormatted',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
+                  Column(
+                    children: [
+                      const Text(
+                        'Thời gian',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _timeFormatted,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(width: 1, height: 30, color: const Color(0xFFCBD5E1)),
+                  Column(
+                    children: [
+                      const Text(
+                        'Kỷ lục',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        bestFormatted,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

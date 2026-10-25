@@ -13,5 +13,9 @@ public interface ISudokuRepository
     Task UpsertSavedGameAsync(SudokuSavedGame savedGame, CancellationToken ct = default);
     Task<bool> DeleteSavedGameAsync(int userId, string gameMode, CancellationToken ct = default);
 
+    Task<List<SudokuDifficultyStat>> GetDifficultyStatsByUserIdAsync(int userId, CancellationToken ct = default);
+    Task<SudokuDifficultyStat?> GetDifficultyStatAsync(int userId, int difficulty, CancellationToken ct = default);
+    Task UpsertDifficultyStatAsync(SudokuDifficultyStat stat, CancellationToken ct = default);
+
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

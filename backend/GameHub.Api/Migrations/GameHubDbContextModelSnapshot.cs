@@ -457,6 +457,55 @@ namespace GameHub.Api.Migrations
                     b.ToTable("PlayerRatings", (string)null);
                 });
 
+            modelBuilder.Entity("GameHub.Api.model.SudokuDifficultyStat", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BestTimeSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("best_time_seconds");
+
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("int")
+                        .HasColumnName("difficulty");
+
+                    b.Property<int>("GamesStarted")
+                        .HasColumnType("int")
+                        .HasColumnName("games_started");
+
+                    b.Property<int>("GamesWon")
+                        .HasColumnType("int")
+                        .HasColumnName("games_won");
+
+                    b.Property<int>("TotalWinTimeSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("total_win_time_seconds");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.Property<int>("WinWithoutMistakes")
+                        .HasColumnType("int")
+                        .HasColumnName("win_without_mistakes");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Difficulty")
+                        .IsUnique();
+
+                    b.ToTable("SudokuDifficultyStats", (string)null);
+                });
+
             modelBuilder.Entity("GameHub.Api.model.SudokuProgress", b =>
                 {
                     b.Property<int>("Id")
@@ -786,6 +835,17 @@ namespace GameHub.Api.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("GameHub.Api.model.SudokuDifficultyStat", b =>
+                {
+                    b.HasOne("GameHub.Api.model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GameHub.Api.model.SudokuProgress", b =>

@@ -58,6 +58,36 @@ public class SudokuRepository(GameHubDbContext db) : ISudokuRepository
         return true;
     }
 
+    public Task<List<SudokuDifficultyStat>> GetDifficultyStatsByUserIdAsync(int userId, CancellationToken ct = default) =>
+        db.SudokuDifficultyStats.AsNoTracking()
+            .Where(s => s.UserId == userId)
+            .OrderBy(s => s.Difficulty)
+            .ToListAsync(ct);
+
+    public Task<SudokuDifficultyStat?> GetDifficultyStatAsync(int userId, int difficulty, CancellationToken ct = default) =>
+        db.SudokuDifficultyStats
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.Difficulty == difficulty, ct);
+
+    public async Task UpsertDifficultyStatAsync(SudokuDifficultyStat stat, CancellationToken ct = default)
+    {
+        var existing = await db.SudokuDifficultyStats
+            .FirstOrDefaultAsync(s => s.UserId == stat.UserId && s.Difficulty == stat.Difficulty, ct);
+
+        if (existing == null)
+        {
+            await db.SudokuDifficultyStats.AddAsync(stat, ct);
+        }
+        else
+        {
+            existing.GamesStarted = stat.GamesStarted;
+            existing.GamesWon = stat.GamesWon;
+            existing.WinWithoutMistakes = stat.WinWithoutMistakes;
+            existing.BestTimeSeconds = stat.BestTimeSeconds;
+            existing.TotalWinTimeSeconds = stat.TotalWinTimeSeconds;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
     public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);
 }
