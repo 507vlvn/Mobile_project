@@ -16,7 +16,9 @@ public class LeaderboardController(LeaderboardService svc) : ApiControllerBase
     {
         q = null;
         if (string.IsNullOrWhiteSpace(gameCode)) return Problem(statusCode: 400, title: "Thiếu mã game");
-        if (difficulty is < 1 or > 3) return Problem(statusCode: 400, title: "Độ khó phải từ 1 đến 3");
+        var maxDifficulty = DifficultyRules.MaxFor(gameCode.Trim());
+        if (difficulty < 1 || difficulty > maxDifficulty)
+            return Problem(statusCode: 400, title: $"Độ khó phải từ 1 đến {maxDifficulty}");
         board = string.IsNullOrWhiteSpace(board) ? "record" : board.Trim().ToLowerInvariant();
         if (board is not ("ranked" or "record")) return Problem(statusCode: 400, title: "board phải là ranked hoặc record");
         scope = string.IsNullOrWhiteSpace(scope) ? "global" : scope.Trim().ToLowerInvariant();

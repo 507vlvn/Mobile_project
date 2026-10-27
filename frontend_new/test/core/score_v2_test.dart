@@ -100,6 +100,26 @@ void main() {
       expect(r.localScore, 850);
     });
 
+    test('Sudoku Chuyên gia / Ác mộng: điểm gốc 4000 / 5000, par 2000 / 3000 giây (khớp server)', () {
+      expect(parFor('SUDOKU', Difficulty.hard, level: 4), 2000);
+      expect(parFor('SUDOKU', Difficulty.hard, level: 5), 3000);
+      expect(computeScore(gameCode: 'SUDOKU', difficulty: Difficulty.hard, level: 4, timeSeconds: 2000, mistakes: 0),
+          4000);
+      expect(computeScore(gameCode: 'SUDOKU', difficulty: Difficulty.hard, level: 5, timeSeconds: 1500, mistakes: 0),
+          7500, reason: 'nhanh gấp đôi -> trần 1.5');
+    });
+
+    test('GameRecord gửi đúng mức 4–5 và đọc lại được từ hàng đợi offline', () {
+      const r = GameRecord(
+          gameCode: 'SUDOKU', difficulty: Difficulty.hard, level: 5, timeSeconds: 3000, mistakes: 0,
+          outcome: GameOutcome.completed);
+      expect(r.toJson()['difficulty'], 5);
+      expect(r.localScore, 5000);
+      final back = GameRecord.fromJson(r.toJson());
+      expect(back.difficultyValue, 5);
+      expect(GameRecord.fromJson({...r.toJson(), 'difficulty': 2}).level, isNull);
+    });
+
     test('thời gian bằng 0 không chia cho 0 (tính như nhanh nhất)', () {
       expect(score('SUDOKU', Difficulty.easy, time: 0), 1500);
     });

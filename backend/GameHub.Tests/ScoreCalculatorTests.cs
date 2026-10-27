@@ -49,11 +49,31 @@ public class ScoreCalculatorTests
         int hints, int expected)
         => Assert.Equal(expected, ScoreCalculator.Calculate(diff, time, mistakes, result, game, moves, hints));
 
+    [Theory]
+    // Sudoku Chuyên gia / Ác mộng: điểm gốc 4000 / 5000, đúng par
+    [InlineData(4, 2000, 4000)]
+    [InlineData(5, 3000, 5000)]
+    // Ác mộng giải nhanh gấp đôi -> trần 1.5
+    [InlineData(5, 1500, 7500)]
+    public void Calculate_SudokuExpertAndNightmare(int diff, int time, int expected)
+        => Assert.Equal(expected, ScoreCalculator.Calculate(diff, time, 0, "COMPLETED", "SUDOKU"));
+
+    [Fact]
+    public void DifficultyRules_SudokuHasFiveLevels_OthersThree()
+    {
+        Assert.Equal(5, DifficultyRules.MaxFor("SUDOKU"));
+        Assert.Equal(5, DifficultyRules.MaxFor("sudoku"));
+        Assert.Equal(3, DifficultyRules.MaxFor("CARO"));
+        Assert.Equal(3, DifficultyRules.MaxFor(null));
+    }
+
     [Fact]
     public void Par_Table_MatchesDesign()
     {
         Assert.Equal(360, ScoreCalculator.ParSeconds("SUDOKU", 1));
         Assert.Equal(1500, ScoreCalculator.ParSeconds("SUDOKU", 3));
+        Assert.Equal(2000, ScoreCalculator.ParSeconds("SUDOKU", 4));
+        Assert.Equal(3000, ScoreCalculator.ParSeconds("SUDOKU", 5));
         Assert.Equal(60, ScoreCalculator.ParSeconds("PUZZLE", 1));
         Assert.Equal(90, ScoreCalculator.ParSeconds("RUBIK", 1));
         Assert.Equal(600, ScoreCalculator.ParSeconds("RUBIK", 3));

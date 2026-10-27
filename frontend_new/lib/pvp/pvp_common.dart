@@ -23,14 +23,41 @@ IconData pvpGameIcon(String gameCode) => switch (gameCode) {
       _ => Icons.sports_esports_rounded,
     };
 
-/// Nhãn độ khó Sudoku: 1/2/3/4 = Dễ / Vừa / Khó / Chuyên gia.
+/// Các mức Sudoku khi mời bạn chơi cùng (khớp SudokuDifficulty: Dễ … Ác mộng).
+const kSudokuDifficulties = [1, 2, 3, 4, 5];
+
+/// Nhãn độ khó Sudoku: 1/2/3/4/5 = Dễ / Vừa / Khó / Chuyên gia / Ác mộng.
 String sudokuDifficultyLabel(int difficulty) => switch (difficulty) {
       1 => 'Dễ',
       2 => 'Vừa',
       3 => 'Khó',
       4 => 'Chuyên gia',
+      5 => 'Ác mộng',
       _ => 'Vừa',
     };
+
+/// Chọn độ khó Sudoku: chip tự xuống dòng (5 mức không vừa một hàng trên điện thoại hẹp).
+class SudokuDifficultyChips extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+  const SudokuDifficultyChips({super.key, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        for (final d in kSudokuDifficulties)
+          ChoiceChip(
+            label: Text(sudokuDifficultyLabel(d)),
+            selected: value == d,
+            onSelected: (_) => onChanged(d),
+          ),
+      ],
+    );
+  }
+}
 
 /// Nhãn độ khó Xếp số: 1/2/3 = lưới 3×3 / 4×4 / 5×5.
 String puzzleSizeLabel(int difficulty) {

@@ -356,9 +356,21 @@ void main() {
     await tester.tap(find.text('Dễ'));
     await tester.pumpAndSettle();
     expect(find.text('Mọi độ khó'), findsNothing);
-    await tester.tap(find.text('Khó').last);
+    expect(find.text('Chuyên gia'), findsOneWidget, reason: 'Sudoku có đủ 5 mức');
+    await tester.tap(find.text('Ác mộng'));
     await tester.pumpAndSettle();
+    expect(fake.leaderboardQueries.last, contains('difficulty=5'));
+
+    // Sang game chỉ có 3 mức: tự về Khó
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Caro'));
+    await tester.pumpAndSettle();
+    expect(fake.leaderboardQueries.last, contains('gameCode=CARO'));
     expect(fake.leaderboardQueries.last, contains('difficulty=3'));
+    await tester.tap(find.text('Khó'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ác mộng'), findsNothing, reason: 'Caro chỉ có 3 mức');
+    await tester.tapAt(const Offset(10, 10)); // đóng menu
+    await tester.pumpAndSettle();
 
     await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>).first, matching: find.text('Đối kháng')));
     await tester.pumpAndSettle();

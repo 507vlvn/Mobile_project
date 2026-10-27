@@ -1,5 +1,14 @@
 namespace GameHub.Api.Services;
 
+/// <summary>Số mức độ khó của từng game: Sudoku 5 (Dễ → Ác mộng), các game khác 3.</summary>
+public static class DifficultyRules
+{
+    public const int SudokuMax = 5, DefaultMax = 3;
+
+    public static int MaxFor(string? gameCode) =>
+        string.Equals(gameCode, "SUDOKU", StringComparison.OrdinalIgnoreCase) ? SudokuMax : DefaultMax;
+}
+
 /// <summary>Luật Caro tự do: bàn 15x15, đủ 5 quân liên tiếp trở lên là thắng (không chặn hai đầu).</summary>
 public static class CaroRules
 {

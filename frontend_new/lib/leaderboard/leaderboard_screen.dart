@@ -33,12 +33,17 @@ const _prefsKey = 'leaderboard_query';
 /// Độ khó mặc định của bảng kỷ lục.
 const _defaultDifficulty = 1;
 
+/// Số mức độ khó của bảng kỷ lục: Sudoku 5 (tới Ác mộng), game khác 3.
+int _maxDifficulty(String game) => game == 'SUDOKU' ? 5 : 3;
+
 String _difficultyLabel(String game, int d) => game == 'PUZZLE'
     ? '${d + 2}×${d + 2}'
     : switch (d) {
         1 => 'Dễ',
         2 => 'Trung bình',
-        _ => 'Khó',
+        3 => 'Khó',
+        4 => 'Chuyên gia',
+        _ => 'Ác mộng',
       };
 
 String _mmss(int seconds) {
@@ -72,7 +77,7 @@ LeaderboardQuery? _queryFromJson(Object? raw) {
   return LeaderboardQuery(
     gameCode: game,
     ranked: ranked,
-    difficulty: ranked ? null : (d is int && d >= 1 && d <= 3 ? d : _defaultDifficulty),
+    difficulty: ranked ? null : (d is int && d >= 1 && d <= _maxDifficulty(game) ? d : _defaultDifficulty),
     friendsOnly: raw['friendsOnly'] == true,
     season: raw['season'] != false,
   );
@@ -355,7 +360,11 @@ class _Filters extends StatelessWidget {
                       avatar: Icon(GameMeta.of(g).icon, size: 18),
                       label: Text(GameMeta.of(g).name),
                       selected: q.gameCode == g,
-                      onSelected: (_) => onChanged(q.copyWith(gameCode: g)),
+                      // Từ Sudoku Chuyên gia / Ác mộng sang game chỉ có 3 mức: về Khó
+                      onSelected: (_) => onChanged(q.copyWith(
+                        gameCode: g,
+                        difficulty: () => q.difficulty == null ? null : q.difficulty!.clamp(1, _maxDifficulty(g)),
+                      )),
                     ),
                   ),
               ],
@@ -385,7 +394,7 @@ class _Filters extends StatelessWidget {
                   icon: Icons.tune_rounded,
                   value: q.difficulty ?? _defaultDifficulty,
                   options: {
-                    for (final d in const [1, 2, 3]) d: _difficultyLabel(q.gameCode, d),
+                    for (var d = 1; d <= _maxDifficulty(q.gameCode); d++) d: _difficultyLabel(q.gameCode, d),
                   },
                   onSelected: (v) => onChanged(q.copyWith(difficulty: () => v)),
                 ),

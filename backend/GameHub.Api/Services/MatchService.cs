@@ -849,7 +849,7 @@ public sealed class MatchService
 
     private static void ValidateDifficulty(int d, string? gameCode = null)
     {
-        var max = gameCode == "SUDOKU" ? 4 : 3;
+        var max = DifficultyRules.MaxFor(gameCode);
         if (d < 1 || d > max) throw new HubException($"Độ khó phải từ 1 đến {max}");
     }
 }

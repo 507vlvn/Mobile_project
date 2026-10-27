@@ -104,6 +104,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       2 => SudokuDifficulty.medium,
       3 => SudokuDifficulty.hard,
       4 => SudokuDifficulty.expert,
+      5 => SudokuDifficulty.nightmare,
       _ => SudokuDifficulty.medium,
     };
 

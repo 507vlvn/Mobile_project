@@ -202,8 +202,8 @@ public class SudokuService(ISudokuRepository repository) : ISudokuService
         var list = await repository.GetDifficultyStatsByUserIdAsync(userId, ct);
         var map = list.ToDictionary(s => s.Difficulty);
 
-        var result = new List<DifficultyStatsDto>(4);
-        for (int diff = 1; diff <= 4; diff++)
+        var result = new List<DifficultyStatsDto>(DifficultyRules.SudokuMax);
+        for (int diff = 1; diff <= DifficultyRules.SudokuMax; diff++)
         {
             if (map.TryGetValue(diff, out var stat))
             {
@@ -234,7 +234,7 @@ public class SudokuService(ISudokuRepository repository) : ISudokuService
 
     public async Task<DifficultyStatsDto> RecordDifficultyStatAsync(int userId, RecordSudokuStatRequest request, CancellationToken ct = default)
     {
-        var diff = Math.Clamp(request.Difficulty, 1, 4);
+        var diff = Math.Clamp(request.Difficulty, 1, DifficultyRules.SudokuMax);
         var stat = await repository.GetDifficultyStatAsync(userId, diff, ct);
 
         if (stat == null)

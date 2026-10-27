@@ -18,7 +18,8 @@ public static class ScoreCalculator
         1 => 1000,
         2 => 2000,
         3 => 3000,
-        4 => 4000,
+        4 => 4000, // Sudoku Chuyên gia
+        5 => 5000, // Sudoku Ác mộng
         _ => throw new ArgumentOutOfRangeException(nameof(difficulty)),
     };
 
@@ -27,7 +28,8 @@ public static class ScoreCalculator
     {
         int[] table = (gameCode ?? "").ToUpperInvariant() switch
         {
-            "SUDOKU" => [360, 720, 1500, 2400],
+            // Khớp parSeconds của SudokuDifficulty ở app: Dễ … Ác mộng
+            "SUDOKU" => [360, 720, 1500, 2000, 3000],
             "RUBIK" => [90, 240, 600],
             _ => [60, 240, 600], // PUZZLE
         };

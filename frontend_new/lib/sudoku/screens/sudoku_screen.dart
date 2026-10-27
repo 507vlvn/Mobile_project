@@ -111,7 +111,9 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
     final api = context.read<ApiClient>();
     reporter.submit(GameRecord(
       gameCode: 'SUDOKU',
+      // Mức chung chỉ có 1–3; Chuyên gia (4), Ác mộng (5) gửi qua level
       difficulty: Difficulty.fromValue(_controller.difficultyNumeric),
+      level: _controller.difficultyNumeric > 3 ? _controller.difficultyNumeric : null,
       timeSeconds: _controller.elapsedSeconds,
       mistakes: _controller.mistakes,
       moves: _controller.movesCount,

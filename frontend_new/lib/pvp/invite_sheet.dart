@@ -129,14 +129,9 @@ class _InviteSheetState extends State<_InviteSheet> {
             const SizedBox(height: AppSpacing.md),
             Text('Độ khó câu đố:', style: text.labelMedium),
             const SizedBox(height: AppSpacing.xs),
-            SegmentedButton<int>(
-              showSelectedIcon: false,
-              segments: [
-                for (final d in const [1, 2, 3, 4])
-                  ButtonSegment(value: d, label: Text(sudokuDifficultyLabel(d))),
-              ],
-              selected: {_sudokuDiff},
-              onSelectionChanged: (v) => setState(() => _sudokuDiff = v.first),
+            SudokuDifficultyChips(
+              value: _sudokuDiff,
+              onChanged: (d) => setState(() => _sudokuDiff = d),
             ),
           ],
           const SizedBox(height: AppSpacing.xl),

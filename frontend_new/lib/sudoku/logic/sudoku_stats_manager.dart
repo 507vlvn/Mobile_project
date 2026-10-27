@@ -13,11 +13,11 @@ class SudokuStatsManager extends ChangeNotifier {
   ApiClient? _api;
   bool _isLoaded = false;
 
+  /// Số mức độ khó Sudoku: Dễ, Trung bình, Khó, Chuyên gia, Ác mộng.
+  static const int difficultyCount = 5;
+
   final Map<int, DifficultyStats> _stats = {
-    1: DifficultyStats(difficulty: 1),
-    2: DifficultyStats(difficulty: 2),
-    3: DifficultyStats(difficulty: 3),
-    4: DifficultyStats(difficulty: 4),
+    for (int d = 1; d <= difficultyCount; d++) d: DifficultyStats(difficulty: d),
   };
 
   void attachApi(ApiClient api) => _api = api;
@@ -39,7 +39,7 @@ class SudokuStatsManager extends ChangeNotifier {
   }
 
   void _resetToDefaults() {
-    for (int d = 1; d <= 4; d++) {
+    for (int d = 1; d <= difficultyCount; d++) {
       _stats[d] = DifficultyStats(difficulty: d);
     }
   }

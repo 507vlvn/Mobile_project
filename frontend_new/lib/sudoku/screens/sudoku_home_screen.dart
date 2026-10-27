@@ -218,14 +218,9 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SegmentedButton<int>(
-                  showSelectedIcon: false,
-                  segments: [
-                    for (final d in const [1, 2, 3, 4])
-                      ButtonSegment(value: d, label: Text(sudokuDifficultyLabel(d))),
-                  ],
-                  selected: {selectedDifficulty},
-                  onSelectionChanged: (v) => setSheetState(() => selectedDifficulty = v.first),
+                SudokuDifficultyChips(
+                  value: selectedDifficulty,
+                  onChanged: (d) => setSheetState(() => selectedDifficulty = d),
                 ),
                 const SizedBox(height: 20),
                 Text(

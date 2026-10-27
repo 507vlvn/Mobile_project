@@ -56,6 +56,22 @@ void main() {
   });
 
   group('Sudoku Controller Tests', () {
+    test('Đủ 5 mức: số độ khó gửi server khớp từng mức và đổi ngược được', () {
+      for (final (diff, n) in const [
+        (SudokuDifficulty.easy, 1),
+        (SudokuDifficulty.medium, 2),
+        (SudokuDifficulty.hard, 3),
+        (SudokuDifficulty.expert, 4),
+        (SudokuDifficulty.nightmare, 5),
+      ]) {
+        final controller = SudokuController(initialDifficulty: diff, seed: 1);
+        expect(controller.difficultyNumeric, n, reason: diff.label);
+        expect(SudokuController.difficultyFromNumeric(n), diff);
+        controller.stopTimer();
+        controller.dispose();
+      }
+    });
+
     test('Initial controller state', () {
       final controller = SudokuController(initialDifficulty: SudokuDifficulty.easy, seed: 42);
       controller.startNewGame(difficulty: SudokuDifficulty.easy, seed: 42, autoStartTimer: false);

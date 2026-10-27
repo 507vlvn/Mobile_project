@@ -86,7 +86,7 @@ class SudokuController extends ChangeNotifier {
       SudokuDifficulty.medium => 2,
       SudokuDifficulty.hard => 3,
       SudokuDifficulty.expert => 4,
-      _ => 2,
+      SudokuDifficulty.nightmare => 5,
     };
   }
 
@@ -96,6 +96,7 @@ class SudokuController extends ChangeNotifier {
       2 => SudokuDifficulty.medium,
       3 => SudokuDifficulty.hard,
       4 => SudokuDifficulty.expert,
+      5 => SudokuDifficulty.nightmare,
       _ => SudokuDifficulty.medium,
     };
   }

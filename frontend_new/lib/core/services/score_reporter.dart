@@ -18,6 +18,10 @@ class GameRecord {
   /// RUBIK | SUDOKU | PUZZLE | CARO
   final String gameCode;
   final Difficulty difficulty;
+
+  /// Mức riêng của game vượt quá 3 mức chung (Sudoku: 4 Chuyên gia, 5 Ác mộng).
+  /// Có thì gửi số này thay cho [difficulty].
+  final int? level;
   final int timeSeconds;
   final int mistakes;
   final int moves;
@@ -31,14 +35,18 @@ class GameRecord {
     required this.timeSeconds,
     required this.mistakes,
     required this.outcome,
+    this.level,
     this.moves = 0,
     this.hints = 0,
     this.challengeId,
   });
 
+  /// Số độ khó gửi lên server (cột GameLevels.difficulty).
+  int get difficultyValue => level ?? difficulty.value;
+
   Map<String, dynamic> toJson() => {
         'gameCode': gameCode,
-        'difficulty': difficulty.value,
+        'difficulty': difficultyValue,
         'timeSpentSeconds': timeSeconds,
         'mistakesCount': mistakes,
         'movesCount': moves,
@@ -50,6 +58,7 @@ class GameRecord {
   factory GameRecord.fromJson(Map<String, dynamic> j) => GameRecord(
         gameCode: j['gameCode'] as String,
         difficulty: Difficulty.fromValue(j['difficulty'] as int?),
+        level: switch (j['difficulty']) { final int d when d > 3 => d, _ => null },
         timeSeconds: j['timeSpentSeconds'] as int,
         mistakes: j['mistakesCount'] as int,
         moves: j['movesCount'] as int? ?? 0,
@@ -70,6 +79,7 @@ class GameRecord {
     final full = computeScore(
       gameCode: gameCode,
       difficulty: difficulty,
+      level: level,
       timeSeconds: timeSeconds,
       mistakes: mistakes,
       moves: moves,

@@ -4,8 +4,9 @@ import 'difficulty.dart';
 
 /// Thời gian chuẩn (par, giây) theo game và độ khó — TASKS_V2 §2.1.
 /// CARO không dùng thời gian: par tính theo số nước (xem [caroParMoves]).
+/// Sudoku có thêm mức 4 (Chuyên gia) và 5 (Ác mộng).
 const Map<String, List<int>> kParSeconds = {
-  'SUDOKU': [6 * 60, 12 * 60, 25 * 60],
+  'SUDOKU': [6 * 60, 12 * 60, 25 * 60, 2000, 50 * 60],
   'PUZZLE': [60, 4 * 60, 10 * 60],
   'RUBIK': [90, 4 * 60, 10 * 60],
 };
@@ -27,10 +28,11 @@ const double kHintFactor = 0.85;
 const double kCaroDrawShare = 0.3;
 
 /// Par của [gameCode] ở [difficulty] (giây, hoặc số nước với CARO).
-int parFor(String gameCode, Difficulty difficulty) {
-  final i = difficulty.value - 1;
-  if (gameCode == 'CARO') return caroParMoves[i];
-  return (kParSeconds[gameCode] ?? kParSeconds['PUZZLE']!)[i];
+/// [level] (4–5, chỉ Sudoku) thay cho [difficulty] khi có.
+int parFor(String gameCode, Difficulty difficulty, {int? level}) {
+  if (gameCode == 'CARO') return caroParMoves[difficulty.value - 1];
+  final table = kParSeconds[gameCode] ?? kParSeconds['PUZZLE']!;
+  return table[((level ?? difficulty.value) - 1).clamp(0, table.length - 1)];
 }
 
 /// Công thức điểm v2 (giống hệt ScoreCalculator phía server — server là nguồn chuẩn).
@@ -48,11 +50,12 @@ int computeScore({
   required int mistakes,
   int moves = 0,
   int hints = 0,
+  int? level,
   bool completed = true,
 }) {
   if (!completed) return 0;
-  final base = difficulty.value * 1000;
-  final par = parFor(gameCode, difficulty);
+  final base = (level ?? difficulty.value) * 1000;
+  final par = parFor(gameCode, difficulty, level: level);
   final actual = gameCode == 'CARO' ? moves : timeSeconds;
   final timeFactor = actual <= 0
       ? kMaxTimeFactor

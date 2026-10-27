@@ -42,7 +42,8 @@ public record GameDto(int GameId, string GameCode, string GameName, string? Desc
 
 public record SubmitHistoryRequest(
     [Required(ErrorMessage = "Thiếu mã game")] string GameCode,
-    [Range(1, 3, ErrorMessage = "Độ khó phải từ 1 đến 3")] int Difficulty,
+    // Sudoku có 5 mức, game khác 3: HistoryController kiểm tra theo từng game (bảng GameLevels)
+    [Range(1, 5, ErrorMessage = "Độ khó phải từ 1 đến 5")] int Difficulty,
     [Range(1, 86400, ErrorMessage = "Thời gian chơi không hợp lệ")] int TimeSpentSeconds,
     [Range(0, 100000, ErrorMessage = "Số lỗi không hợp lệ")] int MistakesCount,
     [Range(0, 1000000, ErrorMessage = "Số nước đi không hợp lệ")] int MovesCount,

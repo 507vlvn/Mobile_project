@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using GameHub.Api.Services;
 
 namespace GameHub.Api.model;
 
@@ -21,7 +22,7 @@ public record UpdateSudokuProgressResponse(
 public record SaveSudokuGameRequest(
     [Required] string GameMode,
     int? Level,
-    [Range(1, 4)] int Difficulty,
+    [Range(1, DifficultyRules.SudokuMax)] int Difficulty,
     long Seed,
     [Required, StringLength(81, MinimumLength = 81)] string BoardCurrent,
     string? NotesData,
@@ -49,7 +50,7 @@ public record DifficultyStatsDto(
     int TotalWinTimeSeconds);
 
 public record RecordSudokuStatRequest(
-    [Range(1, 4, ErrorMessage = "Độ khó từ 1 đến 4")] int Difficulty,
+    [Range(1, DifficultyRules.SudokuMax, ErrorMessage = "Độ khó từ 1 đến 5")] int Difficulty,
     bool IsGameStarted,
     bool IsWin,
     [Range(0, 86400)] int ElapsedSeconds,

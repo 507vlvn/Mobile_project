@@ -19,13 +19,14 @@ class SudokuStatsView extends StatefulWidget {
 
 class _SudokuStatsViewState extends State<SudokuStatsView> {
   final SudokuStatsManager _statsManager = SudokuStatsManager.instance;
-  int _selectedDifficulty = 1; // 1: Dễ, 2: Trung bình, 3: Khó, 4: Chuyên gia
+  int _selectedDifficulty = 1; // 1: Dễ, 2: Trung bình, 3: Khó, 4: Chuyên gia, 5: Ác mộng
 
   final List<String> _difficultyLabels = [
     'Dễ',
     'Trung bình',
     'Khó',
     'Chuyên gia',
+    'Ác mộng',
   ];
 
   @override

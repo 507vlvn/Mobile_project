@@ -168,10 +168,11 @@ public class SudokuServiceTests
         var repo = new FakeSudokuRepository();
         var service = new SudokuService(repo);
 
-        // Initially returns 4 difficulties with 0s
+        // Initially returns 5 difficulties (Dễ … Ác mộng) with 0s
         var initial = await service.GetDifficultyStatsAsync(userId: 1);
-        Assert.Equal(4, initial.Count);
+        Assert.Equal(5, initial.Count);
         Assert.Equal(1, initial[0].Difficulty);
+        Assert.Equal(5, initial[4].Difficulty);
         Assert.Equal(0, initial[0].GamesStarted);
 
         // Record game started on difficulty 2 (Medium)
@@ -214,7 +215,7 @@ public class SudokuServiceTests
 
         // Get all stats
         var allStats = await service.GetDifficultyStatsAsync(1);
-        Assert.Equal(4, allStats.Count);
+        Assert.Equal(5, allStats.Count);
         Assert.Equal(2, allStats[1].GamesWon);
     }
 }
