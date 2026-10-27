@@ -19,7 +19,17 @@ String pvpGameName(String gameCode) => switch (gameCode) {
 IconData pvpGameIcon(String gameCode) => switch (gameCode) {
       kGameCaro => Icons.grid_on_rounded,
       kGamePuzzle => Icons.apps_rounded,
+      kGameSudoku => Icons.grid_3x3_rounded,
       _ => Icons.sports_esports_rounded,
+    };
+
+/// Nhãn độ khó Sudoku: 1/2/3/4 = Dễ / Vừa / Khó / Chuyên gia.
+String sudokuDifficultyLabel(int difficulty) => switch (difficulty) {
+      1 => 'Dễ',
+      2 => 'Vừa',
+      3 => 'Khó',
+      4 => 'Chuyên gia',
+      _ => 'Vừa',
     };
 
 /// Nhãn độ khó Xếp số: 1/2/3 = lưới 3×3 / 4×4 / 5×5.
@@ -28,9 +38,12 @@ String puzzleSizeLabel(int difficulty) {
   return '$n×$n';
 }
 
-/// Mô tả ngắn một ván: "Caro" hoặc "Xếp số 4×4".
-String pvpGameLabel(String gameCode, int difficulty) =>
-    gameCode == kGamePuzzle ? 'Xếp số ${puzzleSizeLabel(difficulty)}' : pvpGameName(gameCode);
+/// Mô tả ngắn một ván: "Caro" hoặc "Xếp số 4×4" hoặc "Sudoku Đồng Đội (Vừa)".
+String pvpGameLabel(String gameCode, int difficulty) => switch (gameCode) {
+      kGamePuzzle => 'Xếp số ${puzzleSizeLabel(difficulty)}',
+      kGameSudoku => 'Sudoku (${sudokuDifficultyLabel(difficulty)})',
+      _ => pvpGameName(gameCode),
+    };
 
 /// [MatchSession] nếu app có cung cấp (test / ảnh chụp có thể không có).
 MatchSession? maybeMatchSessionOf(BuildContext context, {bool listen = false}) {

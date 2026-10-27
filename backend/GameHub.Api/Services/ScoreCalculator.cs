@@ -17,6 +17,7 @@ public static class ScoreCalculator
         1 => 1000,
         2 => 2000,
         3 => 3000,
+        4 => 4000,
         _ => throw new ArgumentOutOfRangeException(nameof(difficulty)),
     };
 
@@ -25,11 +26,11 @@ public static class ScoreCalculator
     {
         int[] table = (gameCode ?? "").ToUpperInvariant() switch
         {
-            "SUDOKU" => [360, 720, 1500],
+            "SUDOKU" => [360, 720, 1500, 2400],
             "RUBIK" => [90, 240, 600],
             _ => [60, 240, 600], // PUZZLE
         };
-        return table[Math.Clamp(difficulty, 1, 3) - 1];
+        return table[Math.Clamp(difficulty, 1, table.Length) - 1];
     }
 
     /// <summary>Số nước chuẩn của Caro: 20 / 30 / 45.</summary>

@@ -58,6 +58,9 @@ public sealed class MatchService
         public int? DrawOfferFrom;
         // Race
         public DateTime RaceDeadline;
+        // Sudoku Co-op
+        public int SharedMistakes;
+        public List<(int Row, int Col, int Value, int UserId, bool IsMistake)> SudokuMoves = [];
         // Kết thúc
         public DateTime EndedAt;
         public int? WinnerId;
@@ -132,7 +135,7 @@ public sealed class MatchService
     public async Task QueueJoinAsync(int userId, string gameCode, int difficulty)
     {
         gameCode = NormalizeGame(gameCode);
-        ValidateDifficulty(difficulty);
+        ValidateDifficulty(difficulty, gameCode);
         var info = await _data.LoadPlayerAsync(userId, gameCode) ?? throw new HubException("Tài khoản không tồn tại");
         var ctx = new Ctx();
         lock (_gate)
@@ -195,7 +198,7 @@ public sealed class MatchService
     public async Task<string> InviteAsync(int userId, int friendId, string gameCode, int difficulty)
     {
         gameCode = NormalizeGame(gameCode);
-        ValidateDifficulty(difficulty);
+        ValidateDifficulty(difficulty, gameCode);
         if (friendId == userId) throw new HubException("Không thể tự mời chính mình");
         if (!await _data.AreFriendsAsync(userId, friendId)) throw new HubException("Chỉ mời đấu giao hữu với bạn bè");
         if (!_presence.IsOnline(friendId)) throw new HubException("Bạn bè đang offline");
@@ -292,10 +295,12 @@ public sealed class MatchService
         _queue.Remove(a.UserId); _queue.Remove(b.UserId);
         var now = _clock.UtcNow;
         var turn = gameCode == "CARO";
+        var coop = gameCode == "SUDOKU" && mode == "FRIENDLY";
+        var kind = turn ? "TURN" : (coop ? "COOP" : "RACE");
         var m = new Live
         {
             Id = Guid.NewGuid().ToString("N"), GameCode = gameCode, Difficulty = difficulty, Mode = mode,
-            Kind = turn ? "TURN" : "RACE", Seed = _rng.Next(1, int.MaxValue), StartedAt = now,
+            Kind = kind, Seed = _rng.Next(1, int.MaxValue), StartedAt = now,
             Slots = [new Slot(a), new Slot(b)],
         };
         if (turn)
@@ -303,6 +308,7 @@ public sealed class MatchService
             m.CurrentTurn = m.Slots[_rng.Next(2)].UserId;
             m.TurnDeadline = now.AddSeconds(TurnSeconds);
         }
+        else if (coop) m.RaceDeadline = now.AddMinutes(30);
         else m.RaceDeadline = now + RaceLimit;
 
         _matches[m.Id] = m;
@@ -351,6 +357,14 @@ public sealed class MatchService
             {
                 progress = m.Slots.Select(s => new { userId = s.UserId, percent = s.Progress }).ToList(),
                 deadlineUtc = m.RaceDeadline,
+            }
+            : null,
+        coop = m.Kind == "COOP"
+            ? new
+            {
+                mistakes = m.SharedMistakes,
+                maxMistakes = 3,
+                moves = m.SudokuMoves.Select(x => new { row = x.Row, col = x.Col, value = x.Value, userId = x.UserId, isMistake = x.IsMistake }).ToList(),
             }
             : null,
     };
@@ -473,6 +487,82 @@ public sealed class MatchService
             me.Mistakes = Math.Clamp(mistakes, 0, 100000);
             me.Progress = 100;
             EndLocked(m, userId, "WIN", ctx);
+            foreach (var s in m.Slots) ctx.Send(s.UserId, "MatchState", Payload(m, s.UserId));
+        }
+        await CompleteAsync(ctx);
+    }
+
+    // ---------- Sudoku Co-op ----------
+
+    public async Task SudokuMoveAsync(int userId, string matchId, int row, int col, int val, bool isMistake)
+    {
+        var ctx = new Ctx();
+        lock (_gate)
+        {
+            var m = ActiveFor(userId, matchId);
+            if (m.Kind != "COOP") throw new HubException("Đây không phải trận Sudoku đồng đội");
+            if (row is < 0 or >= 9 || col is < 0 or >= 9) throw new HubException("Tọa độ ngoài ô");
+
+            var me = m.SlotOf(userId);
+            me.Moves++;
+            if (isMistake)
+            {
+                me.Mistakes++;
+                m.SharedMistakes++;
+                m.SudokuMoves.Add((row, col, val, userId, true));
+                if (m.SharedMistakes >= 3)
+                {
+                    EndLocked(m, null, "MISTAKES_LIMIT", ctx);
+                }
+            }
+            else
+            {
+                m.SudokuMoves.Add((row, col, val, userId, false));
+            }
+
+            foreach (var s in m.Slots)
+            {
+                ctx.Send(s.UserId, "SudokuMoveApplied", new
+                {
+                    matchId = m.Id,
+                    row,
+                    col,
+                    value = val,
+                    byUserId = userId,
+                    isMistake,
+                    mistakes = m.SharedMistakes,
+                    movesCount = m.SudokuMoves.Count,
+                });
+            }
+        }
+        await CompleteAsync(ctx);
+    }
+
+    public async Task SudokuCursorAsync(int userId, string matchId, int row, int col)
+    {
+        var ctx = new Ctx();
+        lock (_gate)
+        {
+            var m = ActiveFor(userId, matchId);
+            if (m.Kind != "COOP") return;
+            var opp = m.OtherOf(userId);
+            ctx.Send(opp.UserId, "SudokuCursorMoved", new { matchId = m.Id, userId, row, col });
+        }
+        await CompleteAsync(ctx);
+    }
+
+    public async Task SudokuFinishAsync(int userId, string matchId, int timeSeconds)
+    {
+        var ctx = new Ctx();
+        lock (_gate)
+        {
+            var m = ActiveFor(userId, matchId);
+            if (m.Kind != "COOP") throw new HubException("Đây không phải trận Sudoku đồng đội");
+            var me = m.SlotOf(userId);
+            me.FinishMs = timeSeconds * 1000;
+            var opp = m.OtherOf(userId);
+            opp.FinishMs = timeSeconds * 1000;
+            EndLocked(m, null, "COOP_WIN", ctx);
             foreach (var s in m.Slots) ctx.Send(s.UserId, "MatchState", Payload(m, s.UserId));
         }
         await CompleteAsync(ctx);
@@ -607,6 +697,10 @@ public sealed class MatchService
                     var (a, b) = (m.Slots[0], m.Slots[1]);
                     EndLocked(m, a.Progress == b.Progress ? null : a.Progress > b.Progress ? a.UserId : b.UserId, "TIME_LIMIT", ctx);
                 }
+                else if (m.Kind == "COOP" && now >= m.RaceDeadline)
+                {
+                    EndLocked(m, null, "TIME_LIMIT", ctx);
+                }
                 else continue;
                 foreach (var s in m.Slots) ctx.Send(s.UserId, "MatchState", Payload(m, s.UserId));
             }
@@ -659,9 +753,11 @@ public sealed class MatchService
 
         PlayerOutcome Outcome(Slot s, Slot other)
         {
-            var result = draw ? "DRAW" : s.UserId == winnerId ? "WIN" : reason == "ABANDON" ? "ABANDONED" : "LOSE";
+            var result = m.Kind == "COOP"
+                ? (reason == "COOP_WIN" ? "WIN" : "LOSE")
+                : (draw ? "DRAW" : s.UserId == winnerId ? "WIN" : reason == "ABANDON" ? "ABANDONED" : "LOSE");
             var time = result == "WIN" && s.FinishMs is int ms ? Math.Max((int)Math.Round(ms / 1000.0), 1) : totalSec;
-            var moves = m.Kind == "TURN" ? s.Moves : 0;
+            var moves = m.Kind == "COOP" ? s.Moves : (m.Kind == "TURN" ? s.Moves : 0);
             var score = result == "WIN" || (result == "DRAW" && m.GameCode == "CARO")
                 ? ScoreCalculator.Calculate(m.Difficulty, time, s.Mistakes, result, m.GameCode, moves)
                 : 0;
@@ -740,8 +836,9 @@ public sealed class MatchService
         return code;
     }
 
-    private static void ValidateDifficulty(int d)
+    private static void ValidateDifficulty(int d, string? gameCode = null)
     {
-        if (d is < 1 or > 3) throw new HubException("Độ khó phải từ 1 đến 3");
+        var max = gameCode == "SUDOKU" ? 4 : 3;
+        if (d < 1 || d > max) throw new HubException($"Độ khó phải từ 1 đến {max}");
     }
 }

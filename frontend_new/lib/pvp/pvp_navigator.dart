@@ -9,6 +9,7 @@ import 'caro_online_screen.dart';
 import 'match_session.dart';
 import 'pvp_common.dart';
 import 'race_puzzle_screen.dart';
+import 'sudoku_coop_screen.dart';
 
 /// Navigator / ScaffoldMessenger của app, để mở màn trận và hiện thông báo
 /// từ bất kỳ đâu (gắn vào MaterialApp trong main.dart).
@@ -21,16 +22,24 @@ bool _matchRouteOpen = false;
 @visibleForTesting
 void debugResetMatchRoute() => _matchRouteOpen = false;
 
-/// Mở màn trận hiện tại (Caro theo lượt hoặc đua Xếp số). Không mở trùng.
+/// Mở màn trận hiện tại (Caro theo lượt, đua Xếp số, hoặc Sudoku đồng đội). Không mở trùng.
 void openMatchScreen(MatchSession session) {
   final nav = appNavigatorKey.currentState;
   final m = session.match;
   if (nav == null || m == null || _matchRouteOpen) return;
   _matchRouteOpen = true;
+
+  final Widget screen;
+  if (m.isCoop || m.gameCode == kGameSudoku) {
+    screen = SudokuCoopScreen(session: session);
+  } else if (m.isTurn) {
+    screen = CaroOnlineScreen(session: session);
+  } else {
+    screen = RacePuzzleScreen(session: session);
+  }
+
   nav
-      .push(MaterialPageRoute<void>(
-        builder: (_) => m.isTurn ? CaroOnlineScreen(session: session) : RacePuzzleScreen(session: session),
-      ))
+      .push(MaterialPageRoute<void>(builder: (_) => screen))
       .whenComplete(() => _matchRouteOpen = false);
 }
 
