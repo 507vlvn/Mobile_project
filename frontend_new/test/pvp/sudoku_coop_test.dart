@@ -231,5 +231,41 @@ void main() {
     // Lượt đã quay lại cho P1
     expect(find.text('LƯỢT CỦA BẠN'), findsOneWidget);
   });
+
+  testWidgets('SudokuCoopScreen: khi thua (hết lượt thử) chỉ hiển thị duy nhất nút Thoát và bấm Thoát đưa về sảnh', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Trận kết thúc do quá số lỗi (thua)
+    rt.matchEndedCtl.add(const MatchEndedEvent(
+      matchId: 'm_sudoku_1',
+      winnerId: null,
+      reason: 'MISTAKES_LIMIT',
+      ranked: false,
+      ratingChanges: {},
+      scores: {},
+    ));
+    await tester.pumpAndSettle();
+
+    // Kiểm tra hộp thoại thua cuộc
+    expect(find.text('Hết Lượt Thử (3/3 Lỗi)'), findsOneWidget);
+    // Chỉ có duy nhất 1 nút "Thoát"
+    expect(find.text('Thoát'), findsOneWidget);
+    expect(find.text('Tái đấu'), findsNothing);
+    expect(find.text('Thử lại'), findsNothing);
+    expect(find.text('Về sảnh'), findsNothing);
+
+    // Bấm nút Thoát
+    await tester.tap(find.text('Thoát'));
+    await tester.pumpAndSettle();
+
+    // Đã giải phóng phiên và đưa về trạng thái idle
+    expect(session.phase, equals(PvpPhase.idle));
+  });
 }
+
 
