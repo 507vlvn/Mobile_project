@@ -54,6 +54,20 @@ final _games = <_GameEntry>[
   ),
 ];
 
+/// Mở màn chính của một game theo mã server; false nếu game chưa có màn.
+bool openGameHome(BuildContext context, String code) {
+  final Widget? screen = switch (code) {
+    'RUBIK' => const RubikHomeScreen(),
+    'CARO' => const CaroHomeScreen(),
+    'SUDOKU' => const SudokuHomeScreen(),
+    'PUZZLE' => const XepHinhScreen(),
+    _ => null,
+  };
+  if (screen == null) return false;
+  Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  return true;
+}
+
 class HubScreen extends StatelessWidget {
   const HubScreen({super.key});
 
@@ -119,23 +133,7 @@ class _GameCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          if (entry.code == 'RUBIK') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const RubikHomeScreen()),
-            );
-          } else if (entry.code == 'CARO') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CaroHomeScreen()),
-            );
-          } else if (entry.code == 'SUDOKU') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SudokuHomeScreen()),
-            );
-          } else if (entry.code == 'PUZZLE') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const XepHinhScreen()),
-            );
-          } else {
+          if (!openGameHome(context, entry.code)) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
               ..showSnackBar(

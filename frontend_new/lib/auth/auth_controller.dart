@@ -168,6 +168,28 @@ class AuthController extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    if (_busy) return false;
+    _busy = true;
+    _lastError = null;
+    notifyListeners();
+    var ok = false;
+    try {
+      await _api.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      ok = true;
+    } on ApiException catch (e) {
+      _lastError = e.message;
+    } catch (_) {
+      _lastError = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+    }
+    _busy = false;
+    notifyListeners();
+    return ok;
+  }
+
   // ---- lưu trữ ----
 
   Future<void> _setUser(AppUser user) async {

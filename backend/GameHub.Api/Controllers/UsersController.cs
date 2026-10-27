@@ -3,6 +3,7 @@ using GameHub.Api.Repositories;
 using GameHub.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Api.Controllers;
@@ -37,6 +38,25 @@ public class UsersController(
         if (req.AvatarUrl is not null) user.AvatarUrl = string.IsNullOrWhiteSpace(req.AvatarUrl) ? null : req.AvatarUrl.Trim();
         await users.SaveAsync(ct);
         return ToDto(user);
+    }
+
+    /// <summary>Sai mật khẩu hiện tại trả 400 (không phải 401) để app không tự đăng xuất.</summary>
+    [HttpPut("me/password")]
+    [EnableRateLimiting(RateLimitPolicies.ChangePassword)]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest req, CancellationToken ct)
+    {
+        var id = CurrentUserId;
+        var user = await users.Users().FirstOrDefaultAsync(u => u.UserId == id && u.IsActive, ct);
+        if (user is null) return Problem(statusCode: 401, title: "Tài khoản không tồn tại");
+
+        if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash))
+            return Problem(statusCode: 400, title: "Mật khẩu hiện tại không đúng");
+        if (req.NewPassword == req.CurrentPassword)
+            return Problem(statusCode: 400, title: "Mật khẩu mới phải khác mật khẩu hiện tại");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+        await users.SaveAsync(ct);
+        return NoContent();
     }
 
     [HttpGet("search")]

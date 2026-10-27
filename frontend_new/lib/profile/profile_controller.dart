@@ -29,6 +29,9 @@ class ProfileController extends ChangeNotifier {
   String? get error => _error;
   bool get hasMoreMatches => _matches.length < _total;
 
+  /// Tổng số trận phía server (có thể lớn hơn số đã tải).
+  int get totalMatches => _total;
+
   void _notify() {
     if (!_disposed) notifyListeners();
   }

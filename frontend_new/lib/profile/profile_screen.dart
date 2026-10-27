@@ -16,6 +16,7 @@ import '../core/widgets/player_card.dart';
 import '../core/widgets/primary_button.dart';
 import '../core/widgets/rank_badge.dart';
 import 'game_stat_tile.dart';
+import 'match_history_screen.dart';
 import 'profile_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -85,22 +86,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (loggedIn && _pc != null) ...[
               const SizedBox(height: AppSpacing.xl),
               _StatsSection(pc: _pc!),
-            ],
-            if (loggedIn) ...[
-              const SizedBox(height: AppSpacing.md),
-              Card(
-                child: ListTile(
-                  minTileHeight: kMinTouchTarget + 8,
-                  leading: const Icon(Icons.edit_rounded),
-                  title: const Text('Sửa tên hiển thị'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => _editName(context, auth),
-                ),
+              const SizedBox(height: AppSpacing.xl),
+              _RecentMatchesSection(
+                pc: _pc!,
+                onSeeAll: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => MatchHistoryScreen(pc: _pc!))),
               ),
             ],
-            if (loggedIn && _pc != null) ...[
+            if (loggedIn) ...[
               const SizedBox(height: AppSpacing.xl),
-              _MatchHistorySection(pc: _pc!),
+              Text('Tài khoản', style: text.titleSmall),
+              const SizedBox(height: AppSpacing.sm),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    ListTile(
+                      minTileHeight: kMinTouchTarget + 8,
+                      leading: const Icon(Icons.edit_rounded),
+                      title: const Text('Sửa tên hiển thị'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _editName(context, auth),
+                    ),
+                    Divider(height: 1, color: scheme.outlineVariant),
+                    ListTile(
+                      minTileHeight: kMinTouchTarget + 8,
+                      leading: const Icon(Icons.lock_reset_rounded),
+                      title: const Text('Đổi mật khẩu'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _changePassword(context, auth),
+                    ),
+                  ],
+                ),
+              ),
             ],
             const SizedBox(height: AppSpacing.xl),
             Text('Giao diện', style: text.titleSmall),
@@ -174,6 +192,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? 'Đã cập nhật tên hiển thị'
           : (auth.lastError ?? 'Không cập nhật được, thử lại sau')),
     ));
+  }
+
+  Future<void> _changePassword(BuildContext context, AuthController auth) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => _ChangePasswordDialog(auth: auth),
+    );
+    if (ok == true) {
+      messenger.showSnackBar(const SnackBar(content: Text('Đã đổi mật khẩu')));
+    }
   }
 }
 
@@ -360,21 +389,37 @@ class _StatsSection extends StatelessWidget {
   }
 }
 
-class _MatchHistorySection extends StatelessWidget {
+/// Chỉ vài trận mới nhất, để phần Tài khoản / Giao diện / Đăng xuất luôn gần.
+/// Toàn bộ lịch sử nằm ở [MatchHistoryScreen].
+class _RecentMatchesSection extends StatelessWidget {
+  static const previewCount = 3;
+
   final ProfileController pc;
-  const _MatchHistorySection({required this.pc});
+  final VoidCallback onSeeAll;
+  const _RecentMatchesSection({required this.pc, required this.onSeeAll});
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: pc,
       builder: (context, _) {
+        final total = pc.totalMatches;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Lịch sử trận', style: text.titleSmall),
+            Row(
+              children: [
+                Expanded(child: Text('Trận gần đây', style: text.titleSmall)),
+                if (!pc.loading && total > previewCount)
+                  TextButton(
+                    style: TextButton.styleFrom(
+                        minimumSize: const Size(0, kMinTouchTarget)),
+                    onPressed: onSeeAll,
+                    child: Text('Xem tất cả ($total)'),
+                  ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (pc.loading)
               const Padding(
@@ -382,41 +427,34 @@ class _MatchHistorySection extends StatelessWidget {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (pc.matches.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Text(
-                  'Chưa có trận đối kháng nào. Các trận bạn đấu trực tiếp sẽ hiện ở đây.',
-                  style:
-                      text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              )
-            else ...[
-              for (final m in pc.matches) MatchHistoryTile(match: m),
-              if (pc.hasMoreMatches)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(kMinTouchTarget),
-                      foregroundColor: scheme.secondary,
-                    ),
-                    onPressed: pc.loadingMore ? null : pc.loadMore,
-                    child: pc.loadingMore
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.5))
-                        : const Text('Xem thêm'),
-                  ),
-                ),
-            ],
+              const MatchHistoryEmpty()
+            else
+              for (final m in pc.matches.take(previewCount))
+                MatchHistoryTile(match: m),
           ],
         );
       },
+    );
+  }
+}
+
+class MatchHistoryEmpty extends StatelessWidget {
+  const MatchHistoryEmpty({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Text(
+        'Chưa có trận đối kháng nào. Các trận bạn đấu trực tiếp sẽ hiện ở đây.',
+        style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+      ),
     );
   }
 }
@@ -587,5 +625,131 @@ class _EditNameDialogState extends State<_EditNameDialog> {
     if (_form.currentState?.validate() ?? false) {
       Navigator.pop(context, _controller.text.trim());
     }
+  }
+}
+
+/// Đổi mật khẩu: gọi API ngay trong hộp thoại để báo lỗi tại chỗ
+/// (sai mật khẩu hiện tại) mà người dùng không phải nhập lại từ đầu.
+class _ChangePasswordDialog extends StatefulWidget {
+  final AuthController auth;
+  const _ChangePasswordDialog({required this.auth});
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final _form = GlobalKey<FormState>();
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_busy || !(_form.currentState?.validate() ?? false)) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final ok = await widget.auth.changePassword(_current.text, _next.text);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context, true);
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _error = widget.auth.lastError ?? 'Không đổi được mật khẩu, thử lại sau';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = _error;
+    return AlertDialog(
+      title: const Text('Đổi mật khẩu'),
+      scrollable: true,
+      content: Form(
+        key: _form,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AuthTextField(
+              controller: _current,
+              label: 'Mật khẩu hiện tại',
+              helper: null,
+              icon: Icons.lock_outline_rounded,
+              obscure: true,
+              autofillHints: const [AutofillHints.password],
+              enabled: !_busy,
+              validator: (v) =>
+                  v.isEmpty ? 'Vui lòng nhập mật khẩu hiện tại' : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AuthTextField(
+              controller: _next,
+              label: 'Mật khẩu mới',
+              helper: 'Từ 6 đến 72 ký tự',
+              icon: Icons.lock_reset_rounded,
+              obscure: true,
+              autofillHints: const [AutofillHints.newPassword],
+              enabled: !_busy,
+              validator: (v) {
+                if (v.isEmpty) return 'Vui lòng nhập mật khẩu mới';
+                if (v.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự';
+                if (v.length > 72) return 'Mật khẩu tối đa 72 ký tự';
+                if (v == _current.text) {
+                  return 'Mật khẩu mới phải khác mật khẩu hiện tại';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AuthTextField(
+              controller: _confirm,
+              label: 'Nhập lại mật khẩu mới',
+              helper: null,
+              icon: Icons.lock_reset_rounded,
+              obscure: true,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
+              enabled: !_busy,
+              onSubmitted: _submit,
+              validator: (v) =>
+                  v != _next.text ? 'Mật khẩu nhập lại không khớp' : null,
+            ),
+            if (error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              InlineErrorBanner(message: error, hint: errorHintFor(error)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : _submit,
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.5))
+              : const Text('Đổi mật khẩu'),
+        ),
+      ],
+    );
   }
 }

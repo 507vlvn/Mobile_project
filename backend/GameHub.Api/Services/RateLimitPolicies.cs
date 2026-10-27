@@ -8,9 +8,11 @@ public static class RateLimitPolicies
 {
     public const string SendMessage = "send-message";
     public const string CreateChallenge = "create-challenge";
+    public const string ChangePassword = "change-password";
 
     public const int MessagesPerMinute = 20;
     public const int ChallengesPerHour = 10;
+    public const int PasswordChangesPer15Min = 5;
 
     public static string PartitionKey(HttpContext ctx) =>
         ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -26,6 +28,12 @@ public static class RateLimitPolicies
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = ChallengesPerHour, Window = TimeSpan.FromHours(1), QueueLimit = 0,
+            }));
+        // Chặn dò mật khẩu hiện tại bằng token bị lộ
+        o.AddPolicy(ChangePassword, ctx => RateLimitPartition.GetFixedWindowLimiter(PartitionKey(ctx),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = PasswordChangesPer15Min, Window = TimeSpan.FromMinutes(15), QueueLimit = 0,
             }));
     }
 }

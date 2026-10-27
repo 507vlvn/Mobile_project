@@ -28,6 +28,7 @@ Test: `cd backend && dotnet test`. Ứng dụng không tự migrate khi khởi �
 | POST | /auth/register | - | `{username,email,password,fullName?}` -> `{token,user}` |
 | POST | /auth/login | - | `{usernameOrEmail,password}` -> `{token,user}` (giới hạn 10 req/phút/IP) |
 | GET/PUT | /users/me | JWT | PUT `{fullName?,avatarUrl?}` |
+| PUT | /users/me/password | JWT | `{currentPassword,newPassword}` -> 204. Sai mật khẩu hiện tại / trùng mật khẩu cũ -> 400. 5 lượt/15 phút/người |
 | GET | /users/search?q= | JWT | q >= 2 ký tự, tối đa 20 kết quả, bỏ qua chính mình |
 | GET | /games | - | Danh sách game kèm level |
 | POST | /history | JWT | `{gameCode,difficulty,timeSpentSeconds,mistakesCount,movesCount,hintsUsed,result,challengeId?}` -> bản ghi + `isPersonalBest` |
