@@ -206,4 +206,53 @@ void main() {
     final m = move(Difficulty.hard, b);
     expect([caroIndex(7, 4), caroIndex(7, 9)], contains(m));
   });
+
+  test('AI Kho: uu tien chan nguoi choi 4 quan thay vi tao 4 mo cho minh', () {
+    final b = board({
+      (8, 5): x, (8, 6): x, (8, 7): x, (8, 8): x,
+      (7, 5): o, (7, 6): o, (7, 7): o,
+    });
+    final m = move(Difficulty.hard, b);
+    expect([caroIndex(8, 4), caroIndex(8, 9)], contains(m));
+  });
+
+  test('AI Kho: chan 3 mo cua nguoi choi truoc khi tao don doi 3-3 cho minh', () {
+    final b = board({
+      (8, 5): x, (8, 6): x, (8, 7): x,
+      (4, 6): o, (5, 6): o, (6, 4): o, (6, 5): o,
+    });
+    final m = move(Difficulty.hard, b);
+    expect([caroIndex(8, 4), caroIndex(8, 8)], contains(m));
+  });
+
+  test('AI Kho: chan don doi 3-3 cua nguoi choi', () {
+    final b = board({
+      (4, 6): x, (5, 6): x, (6, 4): x, (6, 5): x,
+      (10, 10): o, (10, 11): o,
+    });
+    final m = move(Difficulty.hard, b);
+    expect(m, caroIndex(6, 6));
+  });
+
+  test('AI Kho: chan don 4-3 cua nguoi choi', () {
+    // x có đường dọc (5,6), (7,6), (8,6) chặn ở (9,6) (nếu đánh (6,6) sẽ tạo 4 kín)
+    // và đường ngang (6,4), (6,5) mở (nếu đánh (6,6) sẽ tạo 3 mở)
+    final b = board({
+      (5, 6): x, (7, 6): x, (8, 6): x, (9, 6): o,
+      (6, 4): x, (6, 5): x,
+      (11, 11): o,
+    });
+    final m = move(Difficulty.hard, b);
+    expect(m, caroIndex(6, 6));
+  });
+
+  test('AI Kho: khong VCF tan cong khi nguoi choi dang co 4 quan thang ngay', () {
+    final b = board({
+      (8, 5): x, (8, 6): x, (8, 7): x, (8, 8): x,
+      (3, 3): o, (3, 4): o, (3, 5): o,
+    });
+    final m = move(Difficulty.hard, b);
+    // x sắp thắng ngay nên AI bắt buộc phải chặn x ở (8, 4) hoặc (8, 9)
+    expect([caroIndex(8, 4), caroIndex(8, 9)], contains(m));
+  });
 }
