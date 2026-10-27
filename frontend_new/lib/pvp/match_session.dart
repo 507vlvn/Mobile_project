@@ -453,9 +453,9 @@ class MatchSession extends ChangeNotifier {
   /// Mời tái đấu (trong 30 giây sau khi trận kết thúc). Hai bên cùng mời thì
   /// server bắt đầu trận mới (đổi bên đi trước).
   Future<bool> rematch() async {
-    final e = _ended;
-    if (e == null || _rematchSent) return false;
-    final ok = await _run(() => _rt.rematch(e.matchId));
+    final matchId = _ended?.matchId ?? _match?.matchId;
+    if (matchId == null || _rematchSent) return false;
+    final ok = await _run(() => _rt.rematch(matchId));
     if (ok) {
       _rematchSent = true;
       _notify();

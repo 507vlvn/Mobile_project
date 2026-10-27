@@ -232,7 +232,7 @@ void main() {
     expect(find.text('LƯỢT CỦA BẠN'), findsOneWidget);
   });
 
-  testWidgets('SudokuCoopScreen: khi thua (hết lượt thử) chỉ hiển thị duy nhất nút Thoát và bấm Thoát đưa về sảnh', (tester) async {
+  testWidgets('SudokuCoopScreen: khi thua vẫn có nút Tái đấu và Về sảnh, bấm Tái đấu gửi lời mời tới đối thủ', (tester) async {
     final match = createSudokuMatch();
     rt.matchStartedCtl.add(match);
     await tester.pump();
@@ -253,18 +253,44 @@ void main() {
 
     // Kiểm tra hộp thoại thua cuộc
     expect(find.text('Hết Lượt Thử (3/3 Lỗi)'), findsOneWidget);
-    // Chỉ có duy nhất 1 nút "Thoát"
-    expect(find.text('Thoát'), findsOneWidget);
-    expect(find.text('Tái đấu'), findsNothing);
-    expect(find.text('Thử lại'), findsNothing);
-    expect(find.text('Về sảnh'), findsNothing);
+    // Có cả nút "Về sảnh" và "Tái đấu"
+    expect(find.text('Về sảnh'), findsOneWidget);
+    expect(find.text('Tái đấu'), findsOneWidget);
 
-    // Bấm nút Thoát
-    await tester.tap(find.text('Thoát'));
+    // Bấm nút Tái đấu
+    await tester.tap(find.text('Tái đấu'));
     await tester.pumpAndSettle();
 
-    // Đã giải phóng phiên và đưa về trạng thái idle
-    expect(session.phase, equals(PvpPhase.idle));
+    // Đã gọi Rematch tới server hub
+    expect(rt.calls.any((c) => c.startsWith('Rematch m_sudoku_1')), isTrue);
+    expect(find.text('Đang chờ đối thủ…'), findsOneWidget);
+  });
+
+  testWidgets('SudokuCoopScreen: người chơi vẫn có thể bật ghi chú và ghi chú nháp số khi chưa đến lượt mình', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Điền 1 số ở lượt đầu để lượt chuyển sang đối thủ
+    await tester.tap(find.widgetWithText(InkWell, '5'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LƯỢT CỦA NGUYỄN AN'), findsOneWidget);
+
+    // Bật chế độ Ghi chú
+    await tester.tap(find.text('Ghi chú TẮT'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ghi chú BẬT'), findsOneWidget);
+
+    // Ghi chú số 3 vào ô hiện tại khi chưa tới lượt
+    await tester.tap(find.widgetWithText(InkWell, '3'));
+    await tester.pumpAndSettle();
+
+    // Số 3 xuất hiện trong bảng ghi chú nháp của ô
+    expect(find.text('3'), findsWidgets);
   });
 }
 
