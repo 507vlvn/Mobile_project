@@ -33,9 +33,9 @@ void main() {
     );
   }
 
-  MatchInfo createSudokuMatch({int seed = 12345}) {
+  MatchInfo createSudokuMatch({String matchId = 'm_sudoku_1', int seed = 12345}) {
     return MatchInfo(
-      matchId: 'm_sudoku_1',
+      matchId: matchId,
       gameCode: kGameSudoku,
       difficulty: 2,
       ranked: false,
@@ -286,11 +286,47 @@ void main() {
     expect(find.text('Ghi chú BẬT'), findsOneWidget);
 
     // Ghi chú số 3 vào ô hiện tại khi chưa tới lượt
-    await tester.tap(find.widgetWithText(InkWell, '3'));
+    await tester.tap(find.widgetWithText(InkWell, '3'), warnIfMissed: false);
     await tester.pumpAndSettle();
 
     // Số 3 xuất hiện trong bảng ghi chú nháp của ô
     expect(find.text('3'), findsWidgets);
+  });
+
+  testWidgets('SudokuCoopScreen: tái đấu tạo ra ván chơi hoàn toàn mới và đóng hộp thoại kết thúc', (tester) async {
+    final match = createSudokuMatch(matchId: 'm_sudoku_1');
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Kết thúc ván 1 do quá số lỗi
+    rt.matchEndedCtl.add(const MatchEndedEvent(
+      matchId: 'm_sudoku_1',
+      winnerId: null,
+      reason: 'MISTAKES_LIMIT',
+      ranked: false,
+      ratingChanges: {},
+      scores: {},
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Hết Lượt Thử (3/3 Lỗi)'), findsOneWidget);
+
+    // Cả 2 cùng đồng ý tái đấu -> Server gửi MatchStarted với trận mới
+    final rematchMatch = createSudokuMatch(matchId: 'm_sudoku_rematch_999');
+    await tester.runAsync(() async {
+      rt.matchStartedCtl.add(rematchMatch);
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pumpAndSettle();
+
+    // Hộp thoại kết thúc ván cũ đã biến mất
+    expect(find.text('Hết Lượt Thử (3/3 Lỗi)'), findsNothing);
+    // Ván mới bắt đầu với thông báo
+    expect(find.textContaining('Ván tái đấu'), findsOneWidget);
+    // Số lỗi đã được reset về 0/3
+    expect(find.text('0/3'), findsOneWidget);
   });
 }
 

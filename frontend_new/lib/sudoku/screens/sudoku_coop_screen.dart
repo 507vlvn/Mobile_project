@@ -45,7 +45,7 @@ class SudokuCoopScreen extends StatefulWidget {
 }
 
 class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProviderStateMixin {
-  late final List<List<_CoopCell>> _board;
+  List<List<_CoopCell>> _board = [];
   int? _selectedRow;
   int? _selectedCol;
   int? _oppRow;
@@ -97,8 +97,8 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         .animate(_shakeController);
   }
 
-  void _initBoard() {
-    final m = widget.session.match;
+  void _initBoard([MatchInfo? match]) {
+    final m = match ?? widget.session.match;
     final diff = switch (m?.difficulty ?? 2) {
       1 => SudokuDifficulty.easy,
       2 => SudokuDifficulty.medium,
@@ -106,7 +106,14 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       4 => SudokuDifficulty.expert,
       _ => SudokuDifficulty.medium,
     };
-    final seed = m?.seed ?? 42;
+
+    // Đảm bảo mỗi ván chơi (đặc biệt khi Tái đấu) luôn tạo ra đề bài MỚI HOÀN TOÀN:
+    // Kết hợp rawSeed của trận đấu và mã hash duy nhất của matchId
+    final rawSeed = m?.seed ?? 0;
+    final matchHash = (m?.matchId ?? '').hashCode & 0x7FFFFFFF;
+    final seed = rawSeed > 0
+        ? (rawSeed ^ matchHash)
+        : (matchHash > 0 ? matchHash : DateTime.now().millisecondsSinceEpoch);
     final puzzleData = SudokuGenerator.generate(difficulty: diff, seed: seed);
 
     _board = List.generate(9, (r) {
@@ -125,7 +132,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     });
 
     // Khôi phục nước đi đã chơi nếu người chơi vào lại ván đấu (reconnect)
-    final coop = widget.session.match?.coop;
+    final coop = m?.coop;
     if (coop != null) {
       _sharedMistakes = coop.mistakes;
       for (final mv in coop.moves) {
@@ -136,11 +143,13 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
           cell.notes.clear();
         }
       }
+    } else {
+      _sharedMistakes = 0;
     }
 
     // Khởi tạo lượt chơi: ưu tiên từ server, mặc định người chơi đầu tiên đi trước
     _currentTurnUserId = coop?.currentTurnUserId ??
-        widget.session.match?.players.firstOrNull?.userId ??
+        m?.players.firstOrNull?.userId ??
         _myId;
 
     // Tự động chọn ô trống đầu tiên
@@ -246,15 +255,19 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         if (!mounted) return;
         // Đóng dialog kết thúc ván nếu đang mở
         if (_endedDialogShown) {
-          Navigator.of(context, rootNavigator: true).pop();
           _endedDialogShown = false;
+          if (Navigator.of(context, rootNavigator: true).canPop()) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
         }
         // Làm mới lại bàn cờ và tiến trình cho ván mới
         setState(() {
           _board = [];
-          _initBoard();
+          _initBoard(m);
           _sharedMistakes = 0;
           _elapsed = Duration.zero;
+          _selectedRow = null;
+          _selectedCol = null;
           _oppRow = null;
           _oppCol = null;
           _oppChat = null;
@@ -628,7 +641,9 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
           ],
         );
       },
-    );
+    ).then((_) {
+      _endedDialogShown = false;
+    });
   }
 
   Future<bool> _confirmLeave() async {
