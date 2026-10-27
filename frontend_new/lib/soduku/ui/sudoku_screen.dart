@@ -207,6 +207,19 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
         ),
         actionsAlignment: MainAxisAlignment.spaceEvenly,
         actions: [
+          if (!isWin)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.exit_to_app_rounded),
+              label: const Text('Thoát trò chơi'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (mounted) Navigator.pop(context);
+              },
+            ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -215,18 +228,19 @@ class _SudokuScreenState extends State<SudokuScreen> with WidgetsBindingObserver
             },
             child: Text('Chơi lại', style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _hasReportedOutcome = false;
-              _controller.startNewGame();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              foregroundColor: Colors.white,
+          if (isWin)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _hasReportedOutcome = false;
+                _controller.startNewGame();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Ván mới'),
             ),
-            child: const Text('Ván mới'),
-          ),
         ],
       ),
     );

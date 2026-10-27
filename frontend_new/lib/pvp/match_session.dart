@@ -564,6 +564,9 @@ class MatchSession extends ChangeNotifier {
     } on RealtimeException catch (e) {
       _notice(e.message);
       return false;
+    } catch (e) {
+      _notice('Lỗi gửi nước đi: $e');
+      return false;
     }
   }
 
@@ -585,6 +588,9 @@ class MatchSession extends ChangeNotifier {
       return true;
     } on RealtimeException catch (e) {
       _notice(e.message);
+      return false;
+    } catch (e) {
+      _notice('Lỗi báo hoàn thành: $e');
       return false;
     }
   }

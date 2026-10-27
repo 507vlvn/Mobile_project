@@ -115,4 +115,75 @@ void main() {
     // Bảng lỗi cập nhật
     expect(find.byIcon(Icons.close_rounded), findsWidgets);
   });
+
+  testWidgets('SudokuCoopScreen: bấm nút thoát hiển thị hộp thoại và rời phòng thành công', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Bấm nút X ở AppBar
+    await tester.tap(find.byTooltip('Rời phòng'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rời ván chơi?'), findsOneWidget);
+    expect(find.text('Tiếp tục chơi'), findsOneWidget);
+    expect(find.text('Rời phòng'), findsOneWidget);
+
+    // Xác nhận rời phòng
+    await tester.tap(find.widgetWithText(FilledButton, 'Rời phòng'));
+    await tester.pumpAndSettle();
+
+    // Lệnh Resign đã được ghi nhận vào realtime hub
+    expect(rt.calls.any((c) => c.startsWith('Resign m_sudoku_1')), isTrue);
+  });
+
+  testWidgets('SudokuCoopScreen: kết thúc ván đấu và bấm Về sảnh đưa về sảnh', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Trận kết thúc do chiến thắng
+    rt.matchEndedCtl.add(const MatchEndedEvent(
+      matchId: 'm_sudoku_1',
+      winnerId: null,
+      reason: 'COOP_WIN',
+      ranked: false,
+      ratingChanges: {},
+      scores: {},
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chiến Thắng Đồng Đội!'), findsOneWidget);
+    expect(find.text('Về sảnh'), findsOneWidget);
+    expect(find.text('Tái đấu'), findsOneWidget);
+
+    // Bấm về sảnh
+    await tester.tap(find.text('Về sảnh'));
+    await tester.pumpAndSettle();
+
+    expect(session.phase, equals(PvpPhase.idle));
+  });
+
+  testWidgets('SudokuCoopScreen: bấm số bàn phím kích hoạt kiểm tra đáp án', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Bấm số 5 trên bàn phím (ô đầu tiên đã được tự động chọn)
+    await tester.tap(find.widgetWithText(InkWell, '5'));
+    await tester.pump();
+
+    // Đã gọi SudokuMove tới hub
+    expect(rt.calls.any((c) => c.startsWith('SudokuMove m_sudoku_1')), isTrue);
+  });
 }
+
