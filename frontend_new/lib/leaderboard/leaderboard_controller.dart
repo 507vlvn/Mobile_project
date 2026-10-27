@@ -15,7 +15,8 @@ class LeaderboardController extends ChangeNotifier {
   final ApiClient _api;
   final bool Function() _isLoggedIn;
 
-  LeaderboardQuery _query = const LeaderboardQuery(gameCode: 'SUDOKU');
+  /// Bảng kỷ lục luôn xem theo một độ khó cụ thể, mặc định Dễ.
+  LeaderboardQuery _query = const LeaderboardQuery(gameCode: 'SUDOKU', difficulty: 1);
   List<LeaderboardEntry> _entries = const [];
   MyRank? _myRank;
   SeasonInfo? _season;
