@@ -7,6 +7,7 @@ import '../network/models.dart';
 
 const kGameCaro = 'CARO';
 const kGamePuzzle = 'PUZZLE';
+const kGameSudoku = 'SUDOKU';
 
 /// Mã chat nhanh server chấp nhận (MatchService.QuickChatCodes).
 const kQuickChatCodes = ['hello', 'nice', 'gg', 'rematch', 'oops', 'thanks'];
@@ -133,6 +134,7 @@ class MatchInfo {
   final int difficulty;
   final bool ranked;
   final bool isTurn;
+  final String kind;
   final int seed;
   final bool active;
   final DateTime? startedAt;
@@ -147,6 +149,7 @@ class MatchInfo {
     required this.difficulty,
     required this.ranked,
     required this.isTurn,
+    this.kind = '',
     required this.seed,
     required this.active,
     required this.you,
@@ -155,6 +158,8 @@ class MatchInfo {
     this.caro,
     this.race,
   });
+
+  bool get isCoop => kind == 'COOP' || (gameCode == kGameSudoku && !ranked);
 
   MatchPlayer? get me => _player(you);
   MatchPlayer? get opponent {
@@ -183,6 +188,7 @@ class MatchInfo {
       difficulty: _int(m['difficulty']) ?? 1,
       ranked: (m['mode'] as String?) == 'RANKED',
       isTurn: (m['kind'] as String?) == 'TURN',
+      kind: (m['kind'] as String?) ?? '',
       seed: _int(m['seed']) ?? 0,
       active: (m['status'] as String?) != 'ENDED',
       startedAt: _date(m['startedAtUtc']),
@@ -395,11 +401,77 @@ String matchEndReasonVi(MatchEndedEvent e, int me) {
   return switch (e.reason) {
     'WIN' => iWon ? 'Bạn đã chiến thắng' : 'Đối thủ đã chiến thắng',
     'DRAW' => 'Hai bên hòa',
+    'COOP_WIN' => 'Chúc mừng! Hai bạn đã cùng giải xong câu đố Sudoku 🎉',
+    'MISTAKES_LIMIT' => 'Đã hết 3 lượt lỗi cho phép',
     'RESIGN' => iWon ? 'Đối thủ đầu hàng' : 'Bạn đã đầu hàng',
     'TIMEOUT' => iWon ? 'Đối thủ hết thời gian suy nghĩ' : 'Bạn hết thời gian suy nghĩ',
     'ABANDON' => iWon ? 'Đối thủ rời trận' : 'Bạn mất kết nối quá lâu',
-    'TIME_LIMIT' => 'Hết giờ trận đấu, so tiến độ',
+    'TIME_LIMIT' => 'Hết giờ trận đấu',
     'SERVER_RESTART' => 'Trận bị hủy do máy chủ khởi động lại',
     _ => '',
   };
+}
+
+class SudokuMoveEvent {
+  final String matchId;
+  final int row;
+  final int col;
+  final int value;
+  final int byUserId;
+  final bool isMistake;
+  final int mistakes;
+  final int movesCount;
+
+  const SudokuMoveEvent({
+    required this.matchId,
+    required this.row,
+    required this.col,
+    required this.value,
+    required this.byUserId,
+    required this.isMistake,
+    required this.mistakes,
+    required this.movesCount,
+  });
+
+  static SudokuMoveEvent? parse(List<Object?>? args) {
+    final m = _map(_arg(args, 0));
+    final id = m?['matchId'];
+    if (m == null || id is! String) return null;
+    return SudokuMoveEvent(
+      matchId: id,
+      row: _int(m['row']) ?? 0,
+      col: _int(m['col']) ?? 0,
+      value: _int(m['value']) ?? 0,
+      byUserId: _int(m['byUserId']) ?? 0,
+      isMistake: (m['isMistake'] as bool?) ?? false,
+      mistakes: _int(m['mistakes']) ?? 0,
+      movesCount: _int(m['movesCount']) ?? 0,
+    );
+  }
+}
+
+class SudokuCursorEvent {
+  final String matchId;
+  final int userId;
+  final int row;
+  final int col;
+
+  const SudokuCursorEvent({
+    required this.matchId,
+    required this.userId,
+    required this.row,
+    required this.col,
+  });
+
+  static SudokuCursorEvent? parse(List<Object?>? args) {
+    final m = _map(_arg(args, 0));
+    final id = m?['matchId'];
+    if (m == null || id is! String) return null;
+    return SudokuCursorEvent(
+      matchId: id,
+      userId: _int(m['userId']) ?? 0,
+      row: _int(m['row']) ?? 0,
+      col: _int(m['col']) ?? 0,
+    );
+  }
 }

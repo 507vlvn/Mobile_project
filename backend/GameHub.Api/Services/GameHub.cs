@@ -38,6 +38,9 @@ public sealed class GameHub(MatchService matches, PresenceService presence) : Hu
     public Task RespondDraw(string matchId, bool accept) => matches.RespondDrawAsync(Me, matchId, accept);
     public Task Rematch(string matchId) => matches.RematchAsync(Me, matchId);
     public Task QuickChat(string matchId, string code) => matches.QuickChatAsync(Me, matchId, code);
+    public Task SudokuMove(string matchId, int row, int col, int val, bool isMistake) => matches.SudokuMoveAsync(Me, matchId, row, col, val, isMistake);
+    public Task SudokuCursor(string matchId, int row, int col) => matches.SudokuCursorAsync(Me, matchId, row, col);
+    public Task SudokuFinish(string matchId, int timeSeconds) => matches.SudokuFinishAsync(Me, matchId, timeSeconds);
     public Task Rejoin(string matchId) => matches.RejoinAsync(Me, matchId);
 }
 

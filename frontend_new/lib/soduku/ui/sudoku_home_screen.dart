@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../auth/auth_controller.dart';
+import '../../core/models/presence.dart';
 import '../../core/network/api_client.dart';
+import '../../core/network/models.dart';
+import '../../core/realtime/match_models.dart';
+import '../../core/widgets/user_avatar.dart';
+import '../../pvp/pvp_common.dart';
 import '../logic/sudoku_controller.dart';
 import '../logic/sudoku_models.dart';
 import '../logic/sudoku_stats_manager.dart';
@@ -106,6 +111,207 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
     ).then((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  void _openCoopFriendsPicker() {
+    final auth = context.read<AuthController>();
+    if (!auth.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để chơi Sudoku cùng bạn bè')),
+      );
+      return;
+    }
+    _showSudokuCoopDialog();
+  }
+
+  void _showSudokuCoopDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final api = context.read<ApiClient>();
+    final session = maybeMatchSessionOf(context);
+
+    int selectedDifficulty = 2; // Vừa
+    List<FriendInfo>? friendsList;
+    bool loading = true;
+    String? error;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          if (loading && friendsList == null && error == null) {
+            api.friends().then((list) {
+              setSheetState(() {
+                loading = false;
+                friendsList = list;
+              });
+            }).catchError((e) {
+              setSheetState(() {
+                loading = false;
+                error = 'Không thể tải danh sách bạn bè';
+              });
+            });
+          }
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.people_alt_rounded, color: Color(0xFF2563EB), size: 26),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Sudoku Đồng Đội (Co-op)',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Hai bạn cùng nhìn một bảng và giải Sudoku theo thời gian thực',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Chọn độ khó:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<int>(
+                  showSelectedIcon: false,
+                  segments: [
+                    for (final d in const [1, 2, 3, 4])
+                      ButtonSegment(value: d, label: Text(sudokuDifficultyLabel(d))),
+                  ],
+                  selected: {selectedDifficulty},
+                  onSelectionChanged: (v) => setSheetState(() => selectedDifficulty = v.first),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Chọn bạn bè để mời cùng chơi:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : error != null
+                          ? Center(child: Text(error!))
+                          : (friendsList == null || friendsList!.isEmpty)
+                              ? Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.person_add_rounded, size: 48, color: isDark ? Colors.white38 : Colors.grey),
+                                      const SizedBox(height: 8),
+                                      const Text('Chưa có bạn bè nào trong danh sách'),
+                                      const SizedBox(height: 4),
+                                      const Text('Hãy kết bạn ở mục Bạn bè để cùng chơi!', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                    ],
+                                  ),
+                                )
+                              : ListView.separated(
+                                  itemCount: friendsList!.length,
+                                  separatorBuilder: (context, index) => const Divider(height: 1),
+                                  itemBuilder: (ctx, i) {
+                                    final f = friendsList![i];
+                                    final isOnline = f.presence == PresenceStatus.online;
+                                    return ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Stack(
+                                        children: [
+                                          UserAvatar(name: f.displayName, size: 40),
+                                          Positioned(
+                                            right: 0,
+                                            bottom: 0,
+                                            child: Container(
+                                              width: 12,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: isOnline ? const Color(0xFF10B981) : Colors.grey,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: Colors.white, width: 2),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      title: Text(f.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      subtitle: Text(
+                                        isOnline ? 'Đang online' : 'Ngoại tuyến',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isOnline ? const Color(0xFF10B981) : Colors.grey,
+                                        ),
+                                      ),
+                                      trailing: FilledButton.tonal(
+                                        onPressed: () async {
+                                          Navigator.pop(ctx);
+                                          if (session == null) return;
+                                          final ok = await session.invite(f.summary, kGameSudoku, selectedDifficulty);
+                                          if (ok && mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Đã gửi lời mời tới ${f.displayName}! Chờ 30 giây...')),
+                                            );
+                                          }
+                                        },
+                                        child: const Text('Mời chơi'),
+                                      ),
+                                    );
+                                  },
+                                ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showDifficultyPicker() {
@@ -236,7 +442,7 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
           child: Column(
             children: [
               Expanded(
-                child: _selectedNavIndex == 2
+                child: _selectedNavIndex == 1
                     ? SudokuStatsView(
                         embedded: true,
                         onBack: () => setState(() => _selectedNavIndex = 0),
@@ -244,13 +450,11 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                       )
                     : Column(
                         children: [
-                          // Thanh công cụ trên cùng (Mũi tên quay lại, Cúp giải thưởng)
+                          // Thanh công cụ trên cùng (Mũi tên quay lại)
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // Mũi tên quay lại
                                 IconButton(
                                   icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
                                   color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF1E293B),
@@ -260,12 +464,6 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                                       Navigator.pop(context);
                                     }
                                   },
-                                ),
-                                IconButton(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.emoji_events_outlined, size: 26),
-                                  color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
-                                  tooltip: 'Giải đấu',
                                 ),
                               ],
                             ),
@@ -278,37 +476,7 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 16.0),
                               child: Column(
                                 children: [
-                    // Hàng Thẻ Sự Kiện (Event Cards Carousel)
-                    SizedBox(
-                      height: 190,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        children: [
-                          _buildEventCard(
-                            gradientColors: const [Color(0xFF0EA5E9), Color(0xFF2563EB)],
-                            timeLeft: '30 Cấp độ',
-                            iconData: Icons.grid_4x4_rounded,
-                            eventName: 'Toán Chéo (CrossMath)',
-                            buttonColor: Colors.white,
-                            buttonTextColor: const Color(0xFF1D4ED8),
-                            onPlay: _openLearningMode,
-                          ),
-                          const SizedBox(width: 14),
-                          _buildEventCard(
-                            gradientColors: const [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                            timeLeft: '5ngày 17giờ',
-                            iconData: Icons.grid_4x4_rounded,
-                            eventName: 'Cuộc phiêu lưu Sudoku',
-                            buttonColor: Colors.white,
-                            buttonTextColor: const Color(0xFF4338CA),
-                            onPlay: () => _startNewGame(SudokuDifficulty.hard),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 16),
 
                     // Tiêu đề App (Killer Sudoku / Sudoku Classic)
                     Text(
@@ -439,6 +607,96 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
 
                     const SizedBox(height: 16),
 
+                    // Nút: Chơi Cùng Bạn Bè (Sudoku Co-op)
+                    Container(
+                      width: double.infinity,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _openCoopFriendsPicker,
+                          borderRadius: BorderRadius.circular(32),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.people_alt_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                const Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Chơi Cùng Bạn Bè (Co-op)',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        '2 người cùng giải 1 ván Sudoku thời gian thực',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFFEDE9FE),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Đồng đội',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
                     // Nút 3: Toán Chéo (CrossMath) - Bên dưới Trò chơi Mới
                     Container(
                       width: double.infinity,
@@ -545,119 +803,6 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
     );
   }
 
-  Widget _buildEventCard({
-    required List<Color> gradientColors,
-    required String timeLeft,
-    required IconData iconData,
-    required String eventName,
-    required Color buttonColor,
-    required Color buttonTextColor,
-    required VoidCallback onPlay,
-  }) {
-    return Container(
-      width: 175,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors.first.withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Huy hiệu thời gian ở góc
-          Align(
-            alignment: Alignment.topRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.22),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.access_time_rounded, size: 11, color: Colors.white),
-                  const SizedBox(width: 3),
-                  Text(
-                    timeLeft,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Icon minh họa
-          Icon(iconData, size: 36, color: Colors.white.withValues(alpha: 0.9)),
-
-          const Spacer(),
-
-          // Nhãn sự kiện
-          Text(
-            'SỰ KIỆN',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: Colors.white.withValues(alpha: 0.75),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            eventName,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.2,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Nút Chơi
-          SizedBox(
-            width: double.infinity,
-            height: 32,
-            child: ElevatedButton(
-              onPressed: onPlay,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: buttonColor,
-                foregroundColor: buttonTextColor,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: EdgeInsets.zero,
-              ),
-              child: const Text(
-                'Chơi',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBottomNav(bool isDark) {
     return Container(
       decoration: BoxDecoration(
@@ -674,8 +819,7 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(0, Icons.home_rounded, 'Chính', isDark),
-          _buildNavItem(1, Icons.calendar_month_outlined, 'Thử thách', isDark),
-          _buildNavItem(2, Icons.bar_chart_rounded, 'Thống kê', isDark),
+          _buildNavItem(1, Icons.bar_chart_rounded, 'Thống kê', isDark),
         ],
       ),
     );
@@ -689,18 +833,14 @@ class _SudokuHomeScreenState extends State<SudokuHomeScreen> {
 
     return InkWell(
       onTap: () {
+        setState(() => _selectedNavIndex = index);
         if (index == 1) {
-          _openLearningMode();
-        } else {
-          setState(() => _selectedNavIndex = index);
-          if (index == 2) {
-            SudokuStatsManager.instance.syncWithServer();
-          }
+          SudokuStatsManager.instance.syncWithServer();
         }
       },
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

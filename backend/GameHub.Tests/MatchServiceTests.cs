@@ -648,4 +648,48 @@ public class MatchServiceTests
         await _svc.ResignAsync(1, id);
         Assert.Contains(1, changed); Assert.Contains(2, changed);
     }
+
+    [Fact]
+    public async Task SudokuCoop_Flow_Moves_Mistakes_Win()
+    {
+        AddPlayer(1); AddPlayer(2);
+        _data.Friends.Add((1, 2));
+        var inviteId = await _svc.InviteAsync(1, 2, "SUDOKU", 2);
+        await _svc.RespondInviteAsync(2, inviteId, true);
+
+        var startP1 = _out.Last(1, "MatchStarted").Json();
+        Assert.Equal("COOP", Str(startP1, "kind"));
+        var matchId = Str(startP1, "matchId");
+        Assert.NotNull(matchId);
+
+        // Move cursor
+        await _svc.SudokuCursorAsync(2, matchId, 3, 4);
+        var cursorEvt = _out.Last(1, "SudokuCursorMoved").Json();
+        Assert.Equal(3, cursorEvt.GetProperty("row").GetInt32());
+        Assert.Equal(4, cursorEvt.GetProperty("col").GetInt32());
+
+        // Correct move by P1
+        await _svc.SudokuMoveAsync(1, matchId, 0, 0, 5, false);
+        var move1 = _out.Last(2, "SudokuMoveApplied").Json();
+        Assert.Equal(5, move1.GetProperty("value").GetInt32());
+        Assert.Equal(0, move1.GetProperty("mistakes").GetInt32());
+        Assert.False(move1.GetProperty("isMistake").GetBoolean());
+
+        // Mistake by P2
+        await _svc.SudokuMoveAsync(2, matchId, 0, 1, 9, true);
+        var move2 = _out.Last(1, "SudokuMoveApplied").Json();
+        Assert.Equal(1, move2.GetProperty("mistakes").GetInt32());
+        Assert.True(move2.GetProperty("isMistake").GetBoolean());
+
+        // Finish as team win
+        await _svc.SudokuFinishAsync(1, matchId, 180);
+        var endP1 = _out.Last(1, "MatchEnded").Json();
+        Assert.Equal("COOP_WIN", Str(endP1, "reason"));
+        Assert.Single(_data.Saved);
+        var saved = _data.Saved[0];
+        Assert.Equal("WIN", saved.P1.Result);
+        Assert.Equal("WIN", saved.P2.Result);
+        Assert.True(saved.P1.Score > 0);
+        Assert.True(saved.P2.Score > 0);
+    }
 }
