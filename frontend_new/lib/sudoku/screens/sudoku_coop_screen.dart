@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -239,6 +240,38 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         if (!mounted || e.matchId != widget.session.match?.matchId) return;
         _showMatchEndedDialog(e);
       }),
+
+      // Lắng nghe khi trận tái đấu bắt đầu (cả hai bên đều đã bấm Tái đấu)
+      widget.session.starts.listen((m) {
+        if (!mounted) return;
+        // Đóng dialog kết thúc ván nếu đang mở
+        if (_endedDialogShown) {
+          Navigator.of(context, rootNavigator: true).pop();
+          _endedDialogShown = false;
+        }
+        // Làm mới lại bàn cờ và tiến trình cho ván mới
+        setState(() {
+          _board = [];
+          _initBoard();
+          _sharedMistakes = 0;
+          _elapsed = Duration.zero;
+          _oppRow = null;
+          _oppCol = null;
+          _oppChat = null;
+          _tempErrorRow = null;
+          _tempErrorCol = null;
+          _tempErrorValue = null;
+        });
+        _clockTimer?.cancel();
+        _startClock();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎮 Ván tái đấu đã bắt đầu! Chúc hai bạn phối hợp ăn ý.'),
+            backgroundColor: Color(0xFF10B981),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }),
     ]);
   }
 
@@ -271,36 +304,12 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
   void _onNumberTap(int number) {
     if (_endedDialogShown || _sharedMistakes >= _maxMistakes) return;
 
-    if (!_isMyTurn) {
-      final oppName = widget.session.match?.opponent?.displayName ?? 'đồng đội';
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('⏳ Đang là lượt của $oppName! Vui lòng chờ đến lượt của bạn.'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     if (_selectedRow == null || _selectedCol == null) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng chạm chọn ô trên bàn cờ trước'),
           duration: Duration(milliseconds: 1000),
-        ),
-      );
-      return;
-    }
-
-    if (_countPlaced(number) >= 9) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Số $number đã được điền đủ 9 ô trên bàn cờ'),
-          duration: const Duration(milliseconds: 1000),
         ),
       );
       return;
@@ -328,6 +337,8 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       return;
     }
 
+    // NẾU ĐANG BẬT CHẾ ĐỘ GHI CHÚ:
+    // Cho phép người chơi tự do ghi chú / nháp số bất kỳ lúc nào (kể cả khi chưa tới lượt mình)
     if (_isNotesMode) {
       setState(() {
         if (cell.notes.contains(number)) {
@@ -336,6 +347,31 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
           cell.notes.add(number);
         }
       });
+      return;
+    }
+
+    // NẾU ĐIỀN SỐ CHÍNH THỨC: Bắt buộc phải đến lượt của mình
+    if (!_isMyTurn) {
+      final oppName = widget.session.match?.opponent?.displayName ?? 'đồng đội';
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⏳ Đang là lượt của $oppName! Bạn có thể bật "Ghi chú" để nháp số trước.'),
+          duration: const Duration(milliseconds: 1200),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_countPlaced(number) >= 9) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Số $number đã được điền đủ 9 ô trên bàn cờ'),
+          duration: const Duration(milliseconds: 1000),
+        ),
+      );
       return;
     }
 
@@ -551,46 +587,44 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
             ],
           ),
           actions: [
-            if (event.reason == 'MISTAKES_LIMIT' || event.reason == 'TIME_LIMIT') ...[
-              FilledButton.icon(
-                icon: const Icon(Icons.exit_to_app_rounded),
-                label: const Text('Thoát trò chơi'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  widget.session.leaveResult();
-                  if (mounted) Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  widget.session.rematch();
-                },
-                child: const Text('Thử lại'),
-              ),
-            ] else ...[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  widget.session.leaveResult();
-                  if (mounted) Navigator.of(context).pop();
-                },
-                child: const Text('Về sảnh'),
-              ),
-              FilledButton.icon(
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Tái đấu'),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  widget.session.rematch();
-                },
-              ),
-            ],
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                widget.session.leaveResult();
+                if (mounted) Navigator.of(context).pop();
+              },
+              child: const Text('Về sảnh'),
+            ),
+            ListenableBuilder(
+              listenable: widget.session,
+              builder: (context, _) {
+                final rematchSent = widget.session.rematchSent;
+                final oppWantsRematch = widget.session.rematchRequestedByOpponent;
+
+                return FilledButton.icon(
+                  icon: Icon(rematchSent ? Icons.hourglass_top_rounded : Icons.replay_rounded),
+                  label: Text(
+                    rematchSent
+                        ? 'Đang chờ đối thủ…'
+                        : (oppWantsRematch ? 'Chấp nhận tái đấu' : 'Tái đấu'),
+                  ),
+                  onPressed: rematchSent
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final ok = await widget.session.rematch();
+                          if (ok && mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã gửi lời mời tái đấu tới đối thủ!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                );
+              },
+            ),
           ],
         );
       },
@@ -817,15 +851,21 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
 
               const SizedBox(height: 6),
 
-              // Bàn cờ Sudoku 9x9
+              // Bàn cờ Sudoku 9x9 (luôn vuông vắn tuyệt đối, không bị méo trên mọi tỉ lệ màn hình)
               Expanded(
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 1.0,
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: _buildSudokuGrid(),
-                    ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = min(constraints.maxWidth, constraints.maxHeight);
+                      return Center(
+                        child: SizedBox(
+                          width: size,
+                          height: size,
+                          child: _buildSudokuGrid(size),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -1068,37 +1108,62 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     );
   }
 
-  Widget _buildSudokuGrid() {
+  Widget _buildSudokuGrid(double boardSize) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    const borderWidth = 2.0;
+    final innerSize = boardSize - (borderWidth * 2);
+    final cellSize = innerSize / 9;
+    final dividerColor = isDark ? const Color(0xFF475569) : const Color(0xFF1E293B);
 
     return Container(
+      width: boardSize,
+      height: boardSize,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFF0F172A), width: 2),
+        border: Border.all(color: dividerColor, width: borderWidth),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.md - 2),
-        child: Column(
+        borderRadius: BorderRadius.circular(AppRadius.md - borderWidth),
+        child: Stack(
           children: [
+            // 81 ô Sudoku được định vị chính xác tuyệt đối theo pixel (chuẩn hình vuông 100% không lệch)
             for (int r = 0; r < 9; r++)
-              Expanded(
-                child: Row(
-                  children: [
-                    for (int c = 0; c < 9; c++)
-                      Expanded(
-                        child: _buildGridCell(r, c),
-                      ),
-                  ],
+              for (int c = 0; c < 9; c++)
+                Positioned(
+                  left: c * cellSize,
+                  top: r * cellSize,
+                  width: cellSize,
+                  height: cellSize,
+                  child: _buildGridCell(r, c, cellSize),
                 ),
+
+            // Các đường kẻ dày phân tách các khối 3x3
+            for (int i = 1; i <= 2; i++) ...[
+              // Kẻ dọc
+              Positioned(
+                left: i * 3 * cellSize - 1.0,
+                top: 0,
+                bottom: 0,
+                width: 2.0,
+                child: Container(color: dividerColor),
               ),
+              // Kẻ ngang
+              Positioned(
+                top: i * 3 * cellSize - 1.0,
+                left: 0,
+                right: 0,
+                height: 2.0,
+                child: Container(color: dividerColor),
+              ),
+            ],
           ],
         ),
       ),
@@ -1115,7 +1180,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     return count;
   }
 
-  Widget _buildGridCell(int r, int c) {
+  Widget _buildGridCell(int r, int c, double cellSize) {
     final cell = _board[r][c];
     final isSelected = _selectedRow == r && _selectedCol == c;
     final isOppSelected = _oppRow == r && _oppCol == c;
@@ -1160,14 +1225,15 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
     }
 
-    // Viền phân tách 3x3
-    final borderRight = (c % 3 == 2 && c < 8)
-        ? BorderSide(color: isDark ? const Color(0xFF475569) : const Color(0xFF334155), width: 1.8)
-        : BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), width: 0.6);
+    // Viền phân tách: chỉ kẻ viền trong khối, các đường phân tách khối 3x3 để lớp Stack vẽ đè lên
+    final thinBorderColor = isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final borderRight = (c % 3 == 2 || c == 8)
+        ? BorderSide.none
+        : BorderSide(color: thinBorderColor, width: 0.8);
 
-    final borderBottom = (r % 3 == 2 && r < 8)
-        ? BorderSide(color: isDark ? const Color(0xFF475569) : const Color(0xFF334155), width: 1.8)
-        : BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0), width: 0.6);
+    final borderBottom = (r % 3 == 2 || r == 8)
+        ? BorderSide.none
+        : BorderSide(color: thinBorderColor, width: 0.8);
 
     // Xác định ai điền ô này
     final myId = widget.session.match?.you ?? 0;
@@ -1189,6 +1255,8 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       numberColor = isDark ? const Color(0xFF93C5FD) : const Color(0xFF1D4ED8);
     }
 
+    final fontSize = (cellSize * 0.52).clamp(16.0, 24.0);
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _selectCell(r, c),
@@ -1204,23 +1272,23 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
             if (isTempError && _tempErrorValue != null)
               Text(
                 '$_tempErrorValue',
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: fontSize + 1,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFDC2626),
+                  color: const Color(0xFFDC2626),
                 ),
               )
             else if (cell.currentValue > 0)
               Text(
                 '${cell.currentValue}',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: fontSize,
                   fontWeight: cell.isClue ? FontWeight.w900 : FontWeight.bold,
                   color: numberColor,
                 ),
               )
             else if (cell.notes.isNotEmpty)
-              _buildNotesGrid(cell.notes),
+              _buildNotesGrid(cell.notes, cellSize),
 
             // Viền con trỏ của bạn bè (Opponent focus)
             if (isOppSelected && !isSelected)
@@ -1293,7 +1361,9 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     );
   }
 
-  Widget _buildNotesGrid(Set<int> notes) {
+  Widget _buildNotesGrid(Set<int> notes, double cellSize) {
+    final noteFontSize = (cellSize * 0.22).clamp(7.5, 10.0);
+
     return Padding(
       padding: const EdgeInsets.all(1.5),
       child: Column(
@@ -1307,10 +1377,10 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                       child: Center(
                         child: Text(
                           notes.contains(row * 3 + col + 1) ? '${row * 3 + col + 1}' : '',
-                          style: const TextStyle(
-                            fontSize: 9,
+                          style: TextStyle(
+                            fontSize: noteFontSize,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                            color: const Color(0xFF64748B),
                             height: 1,
                           ),
                         ),
@@ -1329,7 +1399,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
-      opacity: _isMyTurn ? 1.0 : 0.45,
+      opacity: (_isMyTurn || _isNotesMode) ? 1.0 : 0.65,
       child: Row(
         children: [
           for (int i = 1; i <= 9; i++) ...[

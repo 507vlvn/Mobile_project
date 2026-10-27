@@ -231,5 +231,67 @@ void main() {
     // Lượt đã quay lại cho P1
     expect(find.text('LƯỢT CỦA BẠN'), findsOneWidget);
   });
+
+  testWidgets('SudokuCoopScreen: khi thua vẫn có nút Tái đấu và Về sảnh, bấm Tái đấu gửi lời mời tới đối thủ', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Trận kết thúc do quá số lỗi (thua)
+    rt.matchEndedCtl.add(const MatchEndedEvent(
+      matchId: 'm_sudoku_1',
+      winnerId: null,
+      reason: 'MISTAKES_LIMIT',
+      ranked: false,
+      ratingChanges: {},
+      scores: {},
+    ));
+    await tester.pumpAndSettle();
+
+    // Kiểm tra hộp thoại thua cuộc
+    expect(find.text('Hết Lượt Thử (3/3 Lỗi)'), findsOneWidget);
+    // Có cả nút "Về sảnh" và "Tái đấu"
+    expect(find.text('Về sảnh'), findsOneWidget);
+    expect(find.text('Tái đấu'), findsOneWidget);
+
+    // Bấm nút Tái đấu
+    await tester.tap(find.text('Tái đấu'));
+    await tester.pumpAndSettle();
+
+    // Đã gọi Rematch tới server hub
+    expect(rt.calls.any((c) => c.startsWith('Rematch m_sudoku_1')), isTrue);
+    expect(find.text('Đang chờ đối thủ…'), findsOneWidget);
+  });
+
+  testWidgets('SudokuCoopScreen: người chơi vẫn có thể bật ghi chú và ghi chú nháp số khi chưa đến lượt mình', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // Điền 1 số ở lượt đầu để lượt chuyển sang đối thủ
+    await tester.tap(find.widgetWithText(InkWell, '5'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LƯỢT CỦA NGUYỄN AN'), findsOneWidget);
+
+    // Bật chế độ Ghi chú
+    await tester.tap(find.text('Ghi chú TẮT'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ghi chú BẬT'), findsOneWidget);
+
+    // Ghi chú số 3 vào ô hiện tại khi chưa tới lượt
+    await tester.tap(find.widgetWithText(InkWell, '3'));
+    await tester.pumpAndSettle();
+
+    // Số 3 xuất hiện trong bảng ghi chú nháp của ô
+    expect(find.text('3'), findsWidgets);
+  });
 }
+
 
