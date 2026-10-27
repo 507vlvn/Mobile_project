@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend_new/soduku/logic/crossmath_levels.dart';
-import 'package:frontend_new/soduku/logic/sudoku_controller.dart';
-import 'package:frontend_new/soduku/logic/sudoku_generator.dart';
-import 'package:frontend_new/soduku/logic/sudoku_learning_manager.dart';
-import 'package:frontend_new/soduku/logic/sudoku_models.dart';
+import 'package:frontend_new/sudoku/logic/crossmath_levels.dart';
+import 'package:frontend_new/sudoku/logic/sudoku_controller.dart';
+import 'package:frontend_new/sudoku/logic/sudoku_generator.dart';
+import 'package:frontend_new/sudoku/logic/sudoku_learning_manager.dart';
+import 'package:frontend_new/sudoku/models/sudoku_models.dart';
 
 void main() {
   group('Sudoku Generator Tests', () {

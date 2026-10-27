@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../caro/caro_home_screen.dart';
-import '../soduku/ui/sudoku_home_screen.dart';
+import '../sudoku/screens/sudoku_home_screen.dart';
 import '../core/theme/app_tokens.dart';
 import '../rubik/screens/rubik_home_screen.dart';
 import '../XepHinh/xep_hinh_screen.dart';

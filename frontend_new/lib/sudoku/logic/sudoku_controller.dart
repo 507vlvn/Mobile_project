@@ -6,7 +6,7 @@ import '../../core/network/api_client.dart';
 import '../../core/network/models.dart';
 import 'sudoku_generator.dart';
 import 'sudoku_learning_manager.dart';
-import 'sudoku_models.dart';
+import '../models/sudoku_models.dart';
 import 'sudoku_stats_manager.dart';
 
 class SudokuController extends ChangeNotifier {

@@ -15,9 +15,9 @@ import 'core/theme/theme_controller.dart';
 import 'pvp/match_session.dart';
 import 'pvp/pvp_navigator.dart';
 import 'shell/main_shell.dart';
-import 'soduku/logic/sudoku_controller.dart';
-import 'soduku/logic/sudoku_learning_manager.dart';
-import 'soduku/logic/sudoku_stats_manager.dart';
+import 'sudoku/logic/sudoku_controller.dart';
+import 'sudoku/logic/sudoku_learning_manager.dart';
+import 'sudoku/logic/sudoku_stats_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

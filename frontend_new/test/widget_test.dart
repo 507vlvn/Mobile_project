@@ -12,7 +12,7 @@ import 'package:frontend_new/core/services/score_reporter.dart';
 import 'package:frontend_new/core/theme/theme_controller.dart';
 import 'package:frontend_new/main.dart';
 import 'package:frontend_new/rubik/screens/rubik_home_screen.dart';
-import 'package:frontend_new/soduku/ui/sudoku_home_screen.dart';
+import 'package:frontend_new/sudoku/screens/sudoku_home_screen.dart';
 import 'package:frontend_new/XepHinh/xep_hinh_screen.dart';
 
 const _me = AppUser(userId: 7, username: 'binh', email: 'binh@example.com', fullName: 'Thái Bình');

@@ -5,10 +5,10 @@ import '../../core/models/difficulty.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/score_reporter.dart';
 import '../logic/sudoku_controller.dart';
-import '../logic/sudoku_models.dart';
+import '../models/sudoku_models.dart';
 import '../logic/sudoku_stats_manager.dart';
-import 'sudoku_board.dart';
-import 'sudoku_keypad.dart';
+import '../widgets/sudoku_board.dart';
+import '../widgets/sudoku_keypad.dart';
 
 class SudokuScreen extends StatefulWidget {
   final SudokuDifficulty initialDifficulty;
