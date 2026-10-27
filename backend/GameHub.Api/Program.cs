@@ -157,4 +157,19 @@ app.MapHub<GameHub.Api.Services.GameHub>("/hubs/game", o =>
     o.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets
                    | Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling);
 
+// Tự động áp dụng migrations lên Database khi khởi động
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<GameHubDbContext>();
+    try
+    {
+        db.Database.Migrate();
+        app.Logger.LogInformation("Database migration applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Không thể tự động áp dụng migration DB khi khởi động.");
+    }
+}
+
 app.Run();
