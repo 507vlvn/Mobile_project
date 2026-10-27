@@ -50,6 +50,11 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
   int? _oppRow;
   int? _oppCol;
 
+  int? _currentTurnUserId;
+  int get _myId => widget.session.match?.you ?? 0;
+  int get _oppId => widget.session.match?.opponent?.userId ?? 0;
+  bool get _isMyTurn => _currentTurnUserId == null || _currentTurnUserId == _myId;
+
   int _sharedMistakes = 0;
   static const int _maxMistakes = 3;
   bool _isNotesMode = false;
@@ -118,6 +123,11 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       });
     });
 
+    // Khởi tạo lượt chơi: ưu tiên từ server, mặc định người chơi đầu tiên đi trước
+    _currentTurnUserId = widget.session.match?.coop?.currentTurnUserId ??
+        widget.session.match?.players.firstOrNull?.userId ??
+        _myId;
+
     // Tự động chọn ô trống đầu tiên
     for (int r = 0; r < 9; r++) {
       for (int c = 0; c < 9; c++) {
@@ -151,6 +161,8 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         if (!mounted || e.matchId != widget.session.match?.matchId) return;
         setState(() {
           _sharedMistakes = e.mistakes;
+          // Luân phiên đổi lượt: từ server gửi về hoặc đổi cho bên còn lại
+          _currentTurnUserId = e.nextTurnUserId ?? (e.byUserId == _myId ? _oppId : _myId);
           if (e.isMistake) {
             _triggerMistakeFeedback();
             _tempErrorTimer?.cancel();
@@ -255,6 +267,19 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
   void _onNumberTap(int number) {
     if (_endedDialogShown || _sharedMistakes >= _maxMistakes) return;
 
+    if (!_isMyTurn) {
+      final oppName = widget.session.match?.opponent?.displayName ?? 'đồng đội';
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⏳ Đang là lượt của $oppName! Vui lòng chờ đến lượt của bạn.'),
+          duration: const Duration(milliseconds: 1200),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     if (_selectedRow == null || _selectedCol == null) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -321,6 +346,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         cell.currentValue = number;
         cell.filledByUserId = myId;
         cell.notes.clear();
+        _currentTurnUserId = _oppId; // Đổi lượt ngay lập tức cho đồng đội
       });
       widget.session.sendSudokuMove(
         row: curRow,
@@ -338,6 +364,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         _tempErrorCol = curCol;
         _tempErrorValue = number;
         _sharedMistakes++;
+        _currentTurnUserId = _oppId; // Đúng hay sai đều đổi lượt ngay lập tức!
       });
       _tempErrorTimer = Timer(const Duration(milliseconds: 1500), () {
         if (mounted) {
@@ -752,6 +779,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                         count: myCount,
                         accentColor: const Color(0xFF2563EB),
                         isMe: true,
+                        isTheirTurn: _isMyTurn,
                         chat: null,
                       ),
                     ),
@@ -763,6 +791,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                         count: oppCount,
                         accentColor: const Color(0xFF10B981),
                         isMe: false,
+                        isTheirTurn: !_isMyTurn,
                         chat: _oppChat,
                         cursorInfo: (_oppRow != null && _oppCol != null)
                             ? 'Ô [${String.fromCharCode(65 + _oppCol!)}${_oppRow! + 1}]'
@@ -772,6 +801,9 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                   ],
                 ),
               ),
+
+              // Dải thông báo lượt đi nổi bật
+              _buildTurnIndicator(),
 
               const SizedBox(height: 6),
 
@@ -839,11 +871,105 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     );
   }
 
+  Widget _buildTurnIndicator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final oppName = widget.session.match?.opponent?.displayName ?? 'Bạn bè';
+    final isMyTurn = _isMyTurn;
+
+    final bgColor = isMyTurn
+        ? (isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5))
+        : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9));
+    final borderColor = isMyTurn
+        ? const Color(0xFF10B981)
+        : (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1));
+    final iconColor = isMyTurn ? const Color(0xFF059669) : const Color(0xFF64748B);
+    final textColor = isMyTurn
+        ? (isDark ? const Color(0xFFA7F3D0) : const Color(0xFF065F46))
+        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569));
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screen, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: isMyTurn ? 1.8 : 1.2),
+        boxShadow: isMyTurn
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.16),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                )
+              ]
+            : null,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isMyTurn ? Icons.touch_app_rounded : Icons.hourglass_top_rounded,
+            color: iconColor,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      isMyTurn ? 'LƯỢT CỦA BẠN' : 'LƯỢT CỦA ${oppName.toUpperCase()}',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: isMyTurn ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        isMyTurn ? '1 số/lượt' : 'Đang chờ...',
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  isMyTurn
+                      ? 'Chọn 1 ô và điền 1 số (đúng hay sai đều đổi lượt)'
+                      : 'Đồng đội đang điền số, vui lòng chờ đổi lượt...',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: textColor.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlayerCard({
     required String name,
     required int count,
     required Color accentColor,
     required bool isMe,
+    required bool isTheirTurn,
     (String, DateTime)? chat,
     String? cursorInfo,
   }) {
@@ -854,9 +980,21 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.08),
+        color: isTheirTurn ? accentColor.withValues(alpha: 0.12) : accentColor.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: accentColor.withValues(alpha: 0.35), width: 1.5),
+        border: Border.all(
+          color: isTheirTurn ? accentColor : accentColor.withValues(alpha: 0.25),
+          width: isTheirTurn ? 2.2 : 1.0,
+        ),
+        boxShadow: isTheirTurn
+            ? [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.18),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -877,6 +1015,19 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                   style: text.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
+              if (isTheirTurn)
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'LƯỢT ĐI',
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
               Text(
                 '$count ô',
                 style: text.labelMedium?.copyWith(color: accentColor, fontWeight: FontWeight.bold),
@@ -1162,57 +1313,61 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
   Widget _buildKeypad() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Row(
-      children: [
-        for (int i = 1; i <= 9; i++) ...[
-          if (i > 1) const SizedBox(width: 4),
-          Expanded(
-            child: Material(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                onTap: () => _onNumberTap(i),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: _isMyTurn ? 1.0 : 0.45,
+      child: Row(
+        children: [
+          for (int i = 1; i <= 9; i++) ...[
+            if (i > 1) const SizedBox(width: 4),
+            Expanded(
+              child: Material(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  height: 52,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                child: InkWell(
+                  onTap: () => _onNumberTap(i),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '$i',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
-                          height: 1.1,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '$i',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A),
+                            height: 1.1,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${_countPlaced(i)}/9',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _countPlaced(i) >= 9
-                              ? const Color(0xFF10B981)
-                              : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
-                          height: 1.0,
+                        Text(
+                          '${_countPlaced(i)}/9',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _countPlaced(i) >= 9
+                                ? const Color(0xFF10B981)
+                                : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                            height: 1.0,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

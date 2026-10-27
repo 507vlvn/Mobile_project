@@ -127,6 +127,29 @@ class RaceState {
   }
 }
 
+/// `coop: {mistakes, maxMistakes, currentTurnUserId, moves:[...]}`.
+class CoopState {
+  final int mistakes;
+  final int maxMistakes;
+  final int? currentTurnUserId;
+
+  const CoopState({
+    this.mistakes = 0,
+    this.maxMistakes = 3,
+    this.currentTurnUserId,
+  });
+
+  static CoopState? parse(Object? v) {
+    final m = _map(v);
+    if (m == null) return null;
+    return CoopState(
+      mistakes: _int(m['mistakes']) ?? 0,
+      maxMistakes: _int(m['maxMistakes']) ?? 3,
+      currentTurnUserId: _int(m['currentTurnUserId']),
+    );
+  }
+}
+
 /// Payload `MatchStarted` / `MatchState`.
 class MatchInfo {
   final String matchId;
@@ -142,6 +165,7 @@ class MatchInfo {
   final List<MatchPlayer> players;
   final CaroState? caro;
   final RaceState? race;
+  final CoopState? coop;
 
   const MatchInfo({
     required this.matchId,
@@ -157,6 +181,7 @@ class MatchInfo {
     this.startedAt,
     this.caro,
     this.race,
+    this.coop,
   });
 
   bool get isCoop => kind == 'COOP' || (gameCode == kGameSudoku && !ranked);
@@ -198,6 +223,7 @@ class MatchInfo {
       ],
       caro: CaroState.parse(m['caro']),
       race: RaceState.parse(m['race']),
+      coop: CoopState.parse(m['coop']),
     );
   }
 }
@@ -421,6 +447,7 @@ class SudokuMoveEvent {
   final bool isMistake;
   final int mistakes;
   final int movesCount;
+  final int? nextTurnUserId;
 
   const SudokuMoveEvent({
     required this.matchId,
@@ -431,6 +458,7 @@ class SudokuMoveEvent {
     required this.isMistake,
     required this.mistakes,
     required this.movesCount,
+    this.nextTurnUserId,
   });
 
   static SudokuMoveEvent? parse(List<Object?>? args) {
@@ -446,6 +474,7 @@ class SudokuMoveEvent {
       isMistake: (m['isMistake'] as bool?) ?? false,
       mistakes: _int(m['mistakes']) ?? 0,
       movesCount: _int(m['movesCount']) ?? 0,
+      nextTurnUserId: _int(m['nextTurnUserId']),
     );
   }
 }

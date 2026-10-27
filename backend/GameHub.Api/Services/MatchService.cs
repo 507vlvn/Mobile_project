@@ -308,7 +308,11 @@ public sealed class MatchService
             m.CurrentTurn = m.Slots[_rng.Next(2)].UserId;
             m.TurnDeadline = now.AddSeconds(TurnSeconds);
         }
-        else if (coop) m.RaceDeadline = now.AddMinutes(30);
+        else if (coop)
+        {
+            m.RaceDeadline = now.AddMinutes(30);
+            m.CurrentTurn = a.UserId;
+        }
         else m.RaceDeadline = now + RaceLimit;
 
         _matches[m.Id] = m;
@@ -364,6 +368,7 @@ public sealed class MatchService
             {
                 mistakes = m.SharedMistakes,
                 maxMistakes = 3,
+                currentTurnUserId = m.CurrentTurn,
                 moves = m.SudokuMoves.Select(x => new { row = x.Row, col = x.Col, value = x.Value, userId = x.UserId, isMistake = x.IsMistake }).ToList(),
             }
             : null,
@@ -501,6 +506,7 @@ public sealed class MatchService
         {
             var m = ActiveFor(userId, matchId);
             if (m.Kind != "COOP") throw new HubException("Đây không phải trận Sudoku đồng đội");
+            if (m.CurrentTurn != 0 && m.CurrentTurn != userId) throw new HubException("Chưa đến lượt của bạn");
             if (row is < 0 or >= 9 || col is < 0 or >= 9) throw new HubException("Tọa độ ngoài ô");
 
             var me = m.SlotOf(userId);
@@ -520,6 +526,9 @@ public sealed class MatchService
                 m.SudokuMoves.Add((row, col, val, userId, false));
             }
 
+            var nextTurn = m.OtherOf(userId).UserId;
+            m.CurrentTurn = nextTurn;
+
             foreach (var s in m.Slots)
             {
                 ctx.Send(s.UserId, "SudokuMoveApplied", new
@@ -532,6 +541,7 @@ public sealed class MatchService
                     isMistake,
                     mistakes = m.SharedMistakes,
                     movesCount = m.SudokuMoves.Count,
+                    nextTurnUserId = nextTurn,
                 });
             }
         }
