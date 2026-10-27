@@ -30,6 +30,12 @@ abstract interface class ApiClient {
   });
   Future<AppUser> me();
   Future<AppUser> updateMe({String? fullName});
+
+  /// Sai mật khẩu hiện tại: server trả 400 (không làm app đăng xuất).
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
   Future<List<UserSummary>> searchUsers(String q);
 
   /// Hồ sơ công khai: quan hệ với mình + thống kê từng game (có kỷ lục chơi đơn).
@@ -206,6 +212,17 @@ class HttpApiClient implements ApiClient {
       AppUser.fromJson(_map(await _send('PUT', '/users/me', body: {
         'fullName': fullName,
       })));
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _send('PUT', '/users/me/password', body: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
 
   List<Map<String, dynamic>> _list(Object? d) => [
         for (final e in (d as List? ?? const []))

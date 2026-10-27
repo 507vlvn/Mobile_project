@@ -30,6 +30,13 @@ public record UpdateProfileRequest(
     [StringLength(100, ErrorMessage = "Họ tên tối đa 100 ký tự")] string? FullName,
     [StringLength(255, ErrorMessage = "Đường dẫn ảnh tối đa 255 ký tự")] string? AvatarUrl);
 
+public record ChangePasswordRequest(
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại")] string CurrentPassword,
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới")]
+    [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự")]
+    [MaxLength(72, ErrorMessage = "Mật khẩu tối đa 72 ký tự")]
+    string NewPassword);
+
 public record LevelDto(int LevelId, int Difficulty, string DifficultyName);
 public record GameDto(int GameId, string GameCode, string GameName, string? Description, List<LevelDto> Levels);
 

@@ -16,7 +16,7 @@ OutlineInputBorder focusedErrorBorderOf(BuildContext context) =>
 class AuthTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
-  final String helper;
+  final String? helper;
   final IconData icon;
   final TextInputType keyboardType;
   final TextInputAction textInputAction;
