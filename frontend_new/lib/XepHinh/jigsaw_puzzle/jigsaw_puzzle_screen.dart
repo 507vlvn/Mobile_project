@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../shared/models/difficulty.dart';
 import '../shared/services/timer_service.dart';
 import '../shared/services/score_service.dart';
 import '../shared/widgets/game_header_widget.dart';
+import '../../core/models/difficulty.dart' as core;
+import '../../core/services/score_reporter.dart';
 import 'jigsaw_puzzle_logic.dart';
 import 'models/jigsaw_picture.dart';
 import 'widgets/jigsaw_piece_image.dart';
@@ -122,12 +125,52 @@ class _JigsawPuzzleScreenState extends State<JigsawPuzzleScreen> {
     );
   }
 
+  core.Difficulty _coreDifficulty() {
+    switch (widget.difficulty) {
+      case GameDifficulty.easy:
+        return core.Difficulty.easy;
+      case GameDifficulty.medium:
+        return core.Difficulty.medium;
+      case GameDifficulty.hard:
+        return core.Difficulty.hard;
+    }
+  }
+
   void _showWinDialog() {
     final int finalScore = ScoreService.calculateScore(
       moves: _logic.moves,
       timeInSeconds: _timerService.secondsElapsed,
       difficulty: widget.difficulty,
     );
+
+    // Nộp điểm lên server
+    final reporter = context.read<ScoreReporter>();
+    final record = GameRecord(
+      gameCode: 'PUZZLE',
+      difficulty: _coreDifficulty(),
+      timeSeconds: _timerService.secondsElapsed,
+      mistakes: 0,
+      moves: _logic.moves,
+      outcome: GameOutcome.completed,
+    );
+    reporter.submit(record).then((outcome) {
+      if (!mounted) return;
+      if (outcome.message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(outcome.message!),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (outcome.isPersonalBest) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🏆 Kỷ lục cá nhân mới!'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    });
 
     showDialog(
       context: context,
