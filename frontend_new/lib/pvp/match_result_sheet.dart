@@ -7,7 +7,8 @@ import 'match_session.dart';
 
 /// Bảng kết quả trận (Thắng / Thua / Hòa, lý do, thay đổi rating) với nút
 /// Tái đấu và Về sảnh. Trả về true nếu người chơi chọn "Về sảnh".
-Future<bool?> showMatchResultSheet(BuildContext context, MatchSession session) {
+/// [rematchAfterResign] = false: trận kết thúc vì đầu hàng thì chỉ còn "Về sảnh".
+Future<bool?> showMatchResultSheet(BuildContext context, MatchSession session, {bool rematchAfterResign = true}) {
   return showModalBottomSheet<bool>(
     context: context,
     isDismissible: false,
@@ -15,14 +16,15 @@ Future<bool?> showMatchResultSheet(BuildContext context, MatchSession session) {
     useSafeArea: true,
     builder: (_) => ListenableBuilder(
       listenable: session,
-      builder: (context, _) => _ResultBody(session: session),
+      builder: (context, _) => _ResultBody(session: session, rematchAfterResign: rematchAfterResign),
     ),
   );
 }
 
 class _ResultBody extends StatelessWidget {
   final MatchSession session;
-  const _ResultBody({required this.session});
+  final bool rematchAfterResign;
+  const _ResultBody({required this.session, required this.rematchAfterResign});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +48,7 @@ class _ResultBody extends StatelessWidget {
                 : ('Thất bại', scheme.error, Icons.sentiment_dissatisfied_rounded);
     final change = e.ratingChanges[me];
     final score = e.scores[me];
-    final canRematch = !cancelled;
+    final canRematch = !cancelled && (rematchAfterResign || e.reason != 'RESIGN');
 
     // Cuộn được để không tràn khi màn hình thấp (điện thoại xoay ngang).
     return SingleChildScrollView(
