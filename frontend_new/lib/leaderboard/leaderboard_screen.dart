@@ -30,6 +30,9 @@ const _rankedGames = ['CARO', 'PUZZLE'];
 /// Khóa SharedPreferences nhớ bộ lọc lần trước.
 const _prefsKey = 'leaderboard_query';
 
+/// Độ khó mặc định của bảng kỷ lục.
+const _defaultDifficulty = 1;
+
 String _difficultyLabel(String game, int d) => game == 'PUZZLE'
     ? '${d + 2}×${d + 2}'
     : switch (d) {
@@ -59,6 +62,7 @@ Map<String, Object?> _queryToJson(LeaderboardQuery q) => {
     };
 
 /// null nếu dữ liệu đã lưu không còn hợp lệ (vd game bị bỏ khỏi bảng đối kháng).
+/// Bảng kỷ lục luôn có độ khó 1..3.
 LeaderboardQuery? _queryFromJson(Object? raw) {
   if (raw is! Map) return null;
   final ranked = raw['ranked'] == true;
@@ -68,7 +72,7 @@ LeaderboardQuery? _queryFromJson(Object? raw) {
   return LeaderboardQuery(
     gameCode: game,
     ranked: ranked,
-    difficulty: !ranked && d is int && d >= 1 && d <= 3 ? d : null,
+    difficulty: ranked ? null : (d is int && d >= 1 && d <= 3 ? d : _defaultDifficulty),
     friendsOnly: raw['friendsOnly'] == true,
     season: raw['season'] != false,
   );
@@ -327,7 +331,7 @@ class _Filters extends StatelessWidget {
               onChanged(q.copyWith(
                 ranked: ranked,
                 gameCode: allowed.contains(q.gameCode) ? q.gameCode : allowed.first,
-                difficulty: () => null,
+                difficulty: () => ranked ? null : (q.difficulty ?? _defaultDifficulty),
               ));
             },
           ),
@@ -351,14 +355,15 @@ class _Filters extends StatelessWidget {
                       avatar: Icon(GameMeta.of(g).icon, size: 18),
                       label: Text(GameMeta.of(g).name),
                       selected: q.gameCode == g,
-                      onSelected: (_) => onChanged(q.copyWith(gameCode: g, difficulty: () => null)),
+                      onSelected: (_) => onChanged(q.copyWith(gameCode: g)),
                     ),
                   ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          // Ba bộ lọc phụ gom vào một hàng menu để danh sách bắt đầu sớm hơn.
+          // Bộ lọc phụ gom vào một hàng menu để danh sách bắt đầu sớm hơn.
+          // Bảng kỷ lục luôn chọn một độ khó cụ thể (không có "Mọi độ khó").
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.xs,
@@ -376,11 +381,10 @@ class _Filters extends StatelessWidget {
                 onSelected: (v) => onChanged(q.copyWith(friendsOnly: v)),
               ),
               if (!q.ranked)
-                _MenuChip<int?>(
+                _MenuChip<int>(
                   icon: Icons.tune_rounded,
-                  value: q.difficulty,
+                  value: q.difficulty ?? _defaultDifficulty,
                   options: {
-                    null: 'Mọi độ khó',
                     for (final d in const [1, 2, 3]) d: _difficultyLabel(q.gameCode, d),
                   },
                   onSelected: (v) => onChanged(q.copyWith(difficulty: () => v)),
@@ -548,8 +552,9 @@ class _PodiumSpot extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Container(
                 width: double.infinity,
-                height: standHeight,
-                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                // Chiều cao tối thiểu: bục thấp vẫn đủ chỗ cho cả điểm lẫn thời gian.
+                constraints: BoxConstraints(minHeight: standHeight),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: standColor,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
@@ -569,13 +574,12 @@ class _PodiumSpot extends StatelessWidget {
                     else
                       Text(value,
                           style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontFeatures: kTabularFigures)),
-                    if (standHeight >= 60)
-                      Text(
-                        ranked ? _winLine(e.games, e.wins) : _mmss(e.bestTimeSeconds),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, fontFeatures: kTabularFigures),
-                      ),
+                    Text(
+                      ranked ? _winLine(e.games, e.wins) : _mmss(e.bestTimeSeconds),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, fontFeatures: kTabularFigures),
+                    ),
                   ],
                 ),
               ),

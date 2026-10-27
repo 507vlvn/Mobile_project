@@ -350,6 +350,15 @@ void main() {
     expect(find.textContaining('Mùa tuần này kết thúc sau 4 ngày'), findsOneWidget);
     expect(find.text('Bạn chưa có thành tích trong bảng này'), findsOneWidget);
     expect(fake.leaderboardQueries.first, contains('board=record'));
+    expect(find.text('Mọi độ khó'), findsNothing, reason: 'không còn lựa chọn gộp mọi độ khó');
+    expect(fake.leaderboardQueries.first, contains('difficulty=1'), reason: 'mặc định Dễ');
+
+    await tester.tap(find.text('Dễ'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mọi độ khó'), findsNothing);
+    await tester.tap(find.text('Khó').last);
+    await tester.pumpAndSettle();
+    expect(fake.leaderboardQueries.last, contains('difficulty=3'));
 
     await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>).first, matching: find.text('Đối kháng')));
     await tester.pumpAndSettle();
@@ -393,6 +402,7 @@ void main() {
     await _openTab(tester, 'Xếp hạng');
 
     expect(find.text('🥉'), findsOneWidget);
+    expect(find.text('08:20'), findsOneWidget, reason: 'bục hạng 3 vẫn hiện thời gian');
     expect(find.text('@em'), findsOneWidget, reason: 'hạng 4 là một dòng trong danh sách');
     expect(find.text('#5'), findsOneWidget);
     expect(find.text('Thêm 101 điểm để vượt Võ Em'), findsOneWidget);
