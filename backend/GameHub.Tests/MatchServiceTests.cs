@@ -674,12 +674,18 @@ public class MatchServiceTests
         Assert.Equal(5, move1.GetProperty("value").GetInt32());
         Assert.Equal(0, move1.GetProperty("mistakes").GetInt32());
         Assert.False(move1.GetProperty("isMistake").GetBoolean());
+        Assert.Equal(2, move1.GetProperty("nextTurnUserId").GetInt32());
+
+        // P1 tries to move again while it is P2's turn -> throws HubException
+        await Assert.ThrowsAsync<Microsoft.AspNetCore.SignalR.HubException>(() =>
+            _svc.SudokuMoveAsync(1, matchId, 0, 1, 9, false));
 
         // Mistake by P2
         await _svc.SudokuMoveAsync(2, matchId, 0, 1, 9, true);
         var move2 = _out.Last(1, "SudokuMoveApplied").Json();
         Assert.Equal(1, move2.GetProperty("mistakes").GetInt32());
         Assert.True(move2.GetProperty("isMistake").GetBoolean());
+        Assert.Equal(1, move2.GetProperty("nextTurnUserId").GetInt32());
 
         // Finish as team win
         await _svc.SudokuFinishAsync(1, matchId, 180);

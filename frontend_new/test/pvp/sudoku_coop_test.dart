@@ -185,5 +185,51 @@ void main() {
     // Đã gọi SudokuMove tới hub
     expect(rt.calls.any((c) => c.startsWith('SudokuMove m_sudoku_1')), isTrue);
   });
+
+  testWidgets('SudokuCoopScreen: chia lượt đổi lượt khi điền số và chặn khi chưa tới lượt', (tester) async {
+    final match = createSudokuMatch();
+    rt.matchStartedCtl.add(match);
+    await tester.pump();
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    expect(find.text('LƯỢT CỦA BẠN'), findsOneWidget);
+
+    // Điền 1 số (lượt đầu của P1)
+    await tester.tap(find.widgetWithText(InkWell, '5'));
+    await tester.pump();
+
+    // Sau khi điền, lượt đổi sang đối thủ (P2 - Nguyễn An)
+    expect(find.text('LƯỢT CỦA NGUYỄN AN'), findsOneWidget);
+
+    final moveCallsBefore = rt.calls.where((c) => c.startsWith('SudokuMove m_sudoku_1')).length;
+
+    // P1 cố tình bấm tiếp số khác khi chưa đến lượt
+    await tester.tap(find.widgetWithText(InkWell, '6'));
+    await tester.pump();
+
+    // Không gửi thêm nước đi nào
+    final moveCallsAfter = rt.calls.where((c) => c.startsWith('SudokuMove m_sudoku_1')).length;
+    expect(moveCallsAfter, equals(moveCallsBefore));
+    expect(find.textContaining('Đang là lượt của Nguyễn An'), findsOneWidget);
+
+    // Đối thủ đi xong và server trả về lượt mới chuyển về P1
+    rt.sudokuMovesCtl.add(const SudokuMoveEvent(
+      matchId: 'm_sudoku_1',
+      row: 0,
+      col: 1,
+      value: 7,
+      byUserId: 2,
+      isMistake: false,
+      mistakes: 0,
+      movesCount: 2,
+      nextTurnUserId: 1,
+    ));
+    await tester.pumpAndSettle();
+
+    // Lượt đã quay lại cho P1
+    expect(find.text('LƯỢT CỦA BẠN'), findsOneWidget);
+  });
 }
 
