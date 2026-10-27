@@ -185,3 +185,19 @@ public class SudokuDifficultyStat
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public User User { get; set; } = null!;
 }
+
+
+public class CaroSavedGame
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public string GameMode { get; set; } = "pve";
+    public int Difficulty { get; set; }
+    public bool PlayerFirst { get; set; }
+    public string HistoryData { get; set; } = "[]";
+    public int Undos { get; set; }
+    public int ElapsedSeconds { get; set; }
+    public int HintsRemaining { get; set; } = 3;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public User User { get; set; } = null!;
+}

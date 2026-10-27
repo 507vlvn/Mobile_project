@@ -166,3 +166,24 @@ public record RecordSudokuStatRequest(
     bool IsWin,
     [Range(0, 86400)] int ElapsedSeconds,
     [Range(0, 100)] int Mistakes);
+
+
+public record SaveCaroGameRequest(
+    [Required] string GameMode,
+    [Range(1, 4)] int Difficulty,
+    bool PlayerFirst,
+    [Required] string HistoryData,
+    [Range(0, 1000)] int Undos,
+    [Range(0, 86400)] int ElapsedSeconds,
+    [Range(0, 3)] int HintsRemaining);
+
+public record CaroSavedGameDto(
+    int Id,
+    string GameMode,
+    int Difficulty,
+    bool PlayerFirst,
+    string HistoryData,
+    int Undos,
+    int ElapsedSeconds,
+    int HintsRemaining,
+    DateTime UpdatedAt);
