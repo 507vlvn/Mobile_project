@@ -1,8 +1,12 @@
-﻿import 'dart:typed_data';
+﻿import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:frontend_new/auth/auth_controller.dart';
+import 'package:frontend_new/core/network/api_client.dart';
 import 'package:frontend_new/caro/caro_controller.dart';
 import 'package:frontend_new/caro/caro_screen.dart';
 import 'package:frontend_new/caro/logic/caro_board.dart';
@@ -24,12 +28,13 @@ class CaroHomeScreen extends StatefulWidget {
   State<CaroHomeScreen> createState() => _CaroHomeScreenState();
 }
 
-class _CaroHomeScreenState extends State<CaroHomeScreen> {
+class _CaroHomeScreenState extends State<CaroHomeScreen> with WidgetsBindingObserver {
   static const _gameCode = 'CARO';
   static const _oneTapKey = 'caro_one_tap';
   static const _firstKey = 'caro_player_first';
   static const _themeKey = 'caro_board_theme';
 
+  int? _lastUserId;
   CaroGameMode _selectedMode = CaroGameMode.pve;
   Difficulty _difficulty = Difficulty.hard;
   bool _playerFirst = true;
@@ -42,9 +47,36 @@ class _CaroHomeScreenState extends State<CaroHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _previewCells = Uint8List(kCaroCells);
     _initPreviewBoard();
-    _loadPrefs();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPrefs());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadPrefs();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      final auth = context.watch<AuthController>();
+      final currentUserId = auth.currentUser?.userId;
+      if (_lastUserId != currentUserId) {
+        _lastUserId = currentUserId;
+        _loadPrefs();
+      }
+    } catch (_) {}
   }
 
   void _initPreviewBoard() {
@@ -60,7 +92,50 @@ class _CaroHomeScreenState extends State<CaroHomeScreen> {
 
   Future<void> _loadPrefs() async {
     final d = await DifficultyMemory.load(_gameCode);
-    final hasSave = await CaroController.hasSavedGame();
+    int? userId;
+    var hasSave = false;
+
+    if (mounted) {
+      try {
+        final auth = context.read<AuthController>();
+        userId = auth.currentUser?.userId;
+        if (auth.isAuthenticated && userId != null) {
+          try {
+            final api = context.read<ApiClient>();
+            final serverSave = await api.getCaroSavedGame();
+            if (serverSave != null && serverSave.history.isNotEmpty) {
+              hasSave = true;
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString(
+                CaroController.saveKeyFor(userId),
+                jsonEncode({
+                  'difficulty': serverSave.difficulty,
+                  'playerFirst': serverSave.playerFirst,
+                  'gameMode': serverSave.gameMode,
+                  'hintsRemaining': serverSave.hintsRemaining,
+                  'history': serverSave.history,
+                  'undos': serverSave.undos,
+                  'seconds': serverSave.elapsedSeconds,
+                }),
+              );
+            } else {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove(CaroController.saveKeyFor(userId));
+              hasSave = false;
+            }
+          } catch (_) {
+            hasSave = await CaroController.hasSavedGame(userId: userId);
+          }
+        } else {
+          hasSave = await CaroController.hasSavedGame(userId: null);
+        }
+      } catch (_) {
+        hasSave = await CaroController.hasSavedGame(userId: null);
+      }
+    } else {
+      hasSave = await CaroController.hasSavedGame(userId: null);
+    }
+
     var oneTap = false, first = true;
     var theme = CaroBoardTheme.wood;
     try {
@@ -88,6 +163,11 @@ class _CaroHomeScreenState extends State<CaroHomeScreen> {
       p.setString(_themeKey, _boardTheme.name);
     }).catchError((_) {});
 
+    int? userId;
+    try {
+      userId = context.read<AuthController>().currentUser?.userId;
+    } catch (_) {}
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CaroScreen(
@@ -95,19 +175,27 @@ class _CaroHomeScreenState extends State<CaroHomeScreen> {
           initialDifficulty: _difficulty,
           initialPlayerFirst: _playerFirst,
           initialTheme: _boardTheme,
+          userId: userId,
         ),
       ),
     ).then((_) => _loadPrefs());
   }
 
   void _resumeSavedGame() {
+    int? userId;
+    try {
+      userId = context.read<AuthController>().currentUser?.userId;
+    } catch (_) {}
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const CaroScreen(resumeSaved: true),
+        builder: (_) => CaroScreen(
+          resumeSaved: true,
+          userId: userId,
+        ),
       ),
     ).then((_) => _loadPrefs());
   }
-
   void _setBoardTheme(CaroBoardTheme theme) {
     setState(() => _boardTheme = theme);
     SharedPreferences.getInstance().then((p) {
