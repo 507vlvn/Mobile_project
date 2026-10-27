@@ -144,8 +144,10 @@ int _levelForKey(int key) {
 
 int _evScore = 0;
 int _evMax = 0;
+int _evN4 = 0;
+int _evN3 = 0;
 
-/// Giá trị nếu [p] đặt quân vào ô trống [idx]. Kết quả ở [_evScore], [_evMax].
+/// Giá trị nếu [p] đặt quân vào ô trống [idx]. Kết quả ở [_evScore], [_evMax], [_evN4], [_evN3].
 void _evalCell(Uint8List cells, int idx, int p) {
   final r = idx ~/ kCaroSize, c = idx % kCaroSize;
   var score = 0, mx = 0, n4 = 0, n3 = 0;
@@ -176,17 +178,16 @@ void _evalCell(Uint8List cells, int idx, int p) {
   // Đòn đôi sát thủ: 4-4, 4-3, 3-3 là các thế cờ có sức mạnh kết liễu trận đấu
   if (n4 >= 2) {
     score += 250000;
-    if (mx < _openFour) mx = _openFour;
   } else if (n4 >= 1 && n3 >= 1) {
     score += 180000;
-    if (mx < _openFour) mx = _openFour;
   } else if (n3 >= 2) {
     score += 120000;
-    if (mx < _openFour) mx = _openFour;
   }
 
   _evScore = score;
   _evMax = mx;
+  _evN4 = n4;
+  _evN3 = n3;
 }
 
 int _centerBonus(int idx) {
@@ -288,12 +289,17 @@ List<int> _findThreatPoints(Uint8List cells, int p) {
 /// Thuật toán tìm chuỗi ép 4 liên tiếp kết liễu trận đấu (VCF Solver)
 int? _findVcf(Uint8List cells, int attacker, int maxDepth) {
   final opp = 3 - attacker;
+
+  // Nếu đối thủ đang có nước thắng ngay (4 quân thành hàng), không thể đi VCF vì đối thủ sẽ thắng trước!
+  final oppThreats = _findThreatPoints(cells, opp);
+  if (oppThreats.isNotEmpty) return null;
+
   final cands = _candidates(cells);
 
-  // 1. Kiểm tra thắng ngay lập tức
+  // 1. Kiểm tra thắng ngay lập tức với 5 quân
   for (final m in cands) {
     _evalCell(cells, m, attacker);
-    if (_evMax >= _five || _evMax >= _openFour) return m;
+    if (_evMax >= _five) return m;
   }
 
   // 2. Thử các nước tạo 4 kín ép đối thủ phải phòng thủ
@@ -335,7 +341,7 @@ bool _vcfDfs(Uint8List cells, int attacker, int opp, int depth) {
   final cands = _candidates(cells);
   for (final m in cands) {
     _evalCell(cells, m, attacker);
-    if (_evMax >= _five || _evMax >= _openFour) return true;
+    if (_evMax >= _five) return true;
   }
 
   if (depth <= 1) return false;
@@ -392,59 +398,73 @@ int chooseCaroMove(CaroAiRequest req) {
   final cands = _candidates(cells);
   if (cands.length == 1) return cands.first;
 
-  // 2. Chạy VCF Solver cho cấp Khó: Nếu AI có đường ép Four thắng ngay lập tức
-  if (req.difficulty == Difficulty.hard) {
-    final vcfWin = _findVcf(cells, ai, 12);
-    if (vcfWin != null && cells[vcfWin] == 0) return vcfWin;
-  }
-
   final rng = Random(req.seed);
   final n = cands.length;
   final scores = List<int>.filled(n, 0);
 
   var win5At = -1;
   var block5At = -1;
-  var winOpen4At = -1;
+  var winRealOpen4At = -1;
   var blockOpen4At = -1;
-  var winDoubleThreatAt = -1;
-  var blockDoubleThreatAt = -1;
+  var winDoubleFourAt = -1;
+  var blockDoubleFourAt = -1;
+  var winFourThreeAt = -1;
+  var blockFourThreeAt = -1;
+  var winDoubleThreeAt = -1;
+  var blockDoubleThreeAt = -1;
 
   for (var i = 0; i < n; i++) {
     final idx = cands[i];
     _evalCell(cells, idx, ai);
-    final a = _evScore, am = _evMax;
+    final a = _evScore, am = _evMax, an4 = _evN4, an3 = _evN3;
     _evalCell(cells, idx, opp);
-    final d = _evScore, dm = _evMax;
+    final d = _evScore, dm = _evMax, dn4 = _evN4, dn3 = _evN3;
 
     // Trọng số tấn công / phòng thủ theo độ khó
-    scores[i] = a + d + _centerBonus(idx);
+    // Cấp khó ưu tiên phòng thủ cao hơn (1.25x) để chặn đứng các nguy cơ tiềm ẩn
+    final defMultiplier = req.difficulty == Difficulty.hard ? 1.25 : 1.0;
+    scores[i] = a + (d * defMultiplier).round() + _centerBonus(idx);
 
     // AI tạo 5 quân -> Thắng ngay
     if (am == _five) win5At = i;
 
-    // Đối thủ tạo 5 quân -> Bắt buộc phải chặn
+    // Đối thủ tạo 5 quân -> Bắt buộc phải chặn ngay lập tức
     if (dm == _five && (block5At < 0 || scores[i] > scores[block5At])) {
       block5At = i;
     }
 
-    // AI tạo 4 mở -> Thắng chắc
-    if (am == _openFour && (winOpen4At < 0 || scores[i] > scores[winOpen4At])) {
-      winOpen4At = i;
+    // AI tạo 4 mở thực sự (2 đầu mở) -> Thắng chắc
+    if (am == _openFour && (winRealOpen4At < 0 || scores[i] > scores[winRealOpen4At])) {
+      winRealOpen4At = i;
     }
 
-    // Đối thủ tạo 4 mở (tức đối thủ đang có 3 mở) -> CỰC KỲ NGUY HIỂM, PHẢI CHẶN NGAY
+    // Đối thủ tạo 4 mở thực sự (đối thủ đang có 3 mở) -> CỰC KỲ NGUY HIỂM, PHẢI CHẶN NGAY
     if (dm == _openFour && (blockOpen4At < 0 || scores[i] > scores[blockOpen4At])) {
       blockOpen4At = i;
     }
 
-    // Đòn đôi sát thủ (3-3 hoặc 4-3)
-    if (am >= _openFour && (winDoubleThreatAt < 0 || scores[i] > scores[winDoubleThreatAt])) {
-      winDoubleThreatAt = i;
+    // Đòn đôi 4-4 (tạo 2 đường 4 kín cùng lúc -> đối thủ chỉ đỡ được 1)
+    if (an4 >= 2 && (winDoubleFourAt < 0 || scores[i] > scores[winDoubleFourAt])) {
+      winDoubleFourAt = i;
+    }
+    if (dn4 >= 2 && (blockDoubleFourAt < 0 || scores[i] > scores[blockDoubleFourAt])) {
+      blockDoubleFourAt = i;
     }
 
-    // Chặn đòn đôi sát thủ của đối thủ
-    if (dm >= _openFour && (blockDoubleThreatAt < 0 || scores[i] > scores[blockDoubleThreatAt])) {
-      blockDoubleThreatAt = i;
+    // Đòn 4-3 (tạo 1 đường 4 kín và 1 đường 3 mở)
+    if (an4 >= 1 && an3 >= 1 && (winFourThreeAt < 0 || scores[i] > scores[winFourThreeAt])) {
+      winFourThreeAt = i;
+    }
+    if (dn4 >= 1 && dn3 >= 1 && (blockFourThreeAt < 0 || scores[i] > scores[blockFourThreeAt])) {
+      blockFourThreeAt = i;
+    }
+
+    // Đòn 3-3 (tạo 2 đường 3 mở)
+    if (an3 >= 2 && (winDoubleThreeAt < 0 || scores[i] > scores[winDoubleThreeAt])) {
+      winDoubleThreeAt = i;
+    }
+    if (dn3 >= 2 && (blockDoubleThreeAt < 0 || scores[i] > scores[blockDoubleThreeAt])) {
+      blockDoubleThreeAt = i;
     }
   }
 
@@ -457,28 +477,37 @@ int chooseCaroMove(CaroAiRequest req) {
     // 1. Thắng ngay với 5 quân
     if (win5At >= 0) return cands[win5At];
 
-    // 2. Chặn ngay đối thủ tạo 5 quân
+    // 2. Chặn ngay đối thủ tạo 5 quân (Bắt buộc chặn, không ưu tiên bất cứ nước tấn công nào khác)
     if (block5At >= 0) return cands[block5At];
 
-    // Cấp Khó: Phòng thủ tuyệt đối và tấn công dứt điểm
+    // 3. AI tạo 4 mở thực sự hoặc đòn đôi 4-4 (thắng không thể đỡ ở lượt sau)
+    if (winRealOpen4At >= 0) return cands[winRealOpen4At];
+    if (winDoubleFourAt >= 0) return cands[winDoubleFourAt];
+
+    // 4. BẮT BUỘC CHẶN NƯỚC TẠO 4 MỞ CỦA ĐỐI THỦ HOẶC ĐÒN ĐÔI 4-4
+    // (Nếu không chặn, đối thủ sẽ thắng ở lượt kế tiếp)
+    if (blockOpen4At >= 0) return cands[blockOpen4At];
+    if (blockDoubleFourAt >= 0) return cands[blockDoubleFourAt];
+
+    // Cấp Khó: Phòng thủ tuyệt đối trước khi mưu tính tấn công
     if (req.difficulty == Difficulty.hard) {
-      // 3. AI tạo 4 mở (thắng không thể đỡ)
-      if (winOpen4At >= 0) return cands[winOpen4At];
+      // 5. BẮT BUỘC CHẶN ĐÒN ĐÔI 4-3 HOẶC 3-3 CỦA ĐỐI THỦ
+      // (Ngăn chặn đối thủ tạo thế cờ hiểm dẫn đến thắng cuộc)
+      if (blockFourThreeAt >= 0) return cands[blockFourThreeAt];
+      if (blockDoubleThreeAt >= 0) return cands[blockDoubleThreeAt];
 
-      // 4. BẮT BUỘC CHẶN 3 MỞ CỦA ĐỐI THỦ (nếu không đối thủ tạo 4 mở sẽ thắng)
-      if (blockOpen4At >= 0) {
-        return cands[blockOpen4At]; // Chặn ngay 3 mở của đối thủ!
-      }
-
-      // 5. Chặn chuỗi VCF của đối thủ
+      // 6. Chặn chuỗi VCF của đối thủ
       final oppVcf = _findVcf(cells, opp, 8);
       if (oppVcf != null && cells[oppVcf] == 0) return oppVcf;
 
-      // 6. AI tạo đòn đôi 3-3 hoặc 4-3
-      if (winDoubleThreatAt >= 0) return cands[winDoubleThreatAt];
+      // 7. Sau khi đối thủ không có thế thắng, AI mới tìm nước kết liễu hoặc tạo thế:
+      // AI tìm chuỗi VCF thắng
+      final vcfWin = _findVcf(cells, ai, 12);
+      if (vcfWin != null && cells[vcfWin] == 0) return vcfWin;
 
-      // 7. BẮT BUỘC CHẶN ĐÒN ĐÔI CỦA ĐỐI THỦ
-      if (blockDoubleThreatAt >= 0) return cands[blockDoubleThreatAt];
+      // AI tạo đòn đôi 4-3 hoặc 3-3
+      if (winFourThreeAt >= 0) return cands[winFourThreeAt];
+      if (winDoubleThreeAt >= 0) return cands[winDoubleThreeAt];
     }
   }
 
@@ -579,7 +608,7 @@ class _Search {
       _evalCell(cells, i, opp);
       final d = _evScore, dm = _evMax;
       if (dm == _five) blocks.add(i);
-      packed.add(((a + d + _centerBonus(i)) << 8) | i);
+      packed.add(((a + (d * 1.25).round() + _centerBonus(i)) << 8) | i);
     }
     if (blocks.length >= 2) return const _Gen(-1, true, []);
     if (blocks.length == 1) return _Gen(-1, false, blocks);
