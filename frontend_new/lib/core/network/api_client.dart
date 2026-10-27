@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -100,8 +100,19 @@ abstract interface class ApiClient {
     int elapsedSeconds = 0,
     int mistakes = 0,
   });
+  // ---- Caro ----
+  Future<CaroSavedGame?> getCaroSavedGame({String? mode});
+  Future<CaroSavedGame> saveCaroGame({
+    required String gameMode,
+    required int difficulty,
+    required bool playerFirst,
+    required List<int> history,
+    int undos = 0,
+    int elapsedSeconds = 0,
+    int hintsRemaining = 3,
+  });
+  Future<bool> deleteCaroSavedGame({String? mode});
 }
-
 class HttpApiClient implements ApiClient {
   HttpApiClient({
     required TokenStorage tokens,
@@ -394,5 +405,46 @@ class HttpApiClient implements ApiClient {
       },
     );
     return DifficultyStats.fromJson(_map(d));
+  }
+
+  // ---- Caro ----
+  @override
+  Future<CaroSavedGame?> getCaroSavedGame({String? mode}) async {
+    final query = mode != null ? {'mode': mode} : null;
+    final d = await _send('GET', '/caro/saved-game', query: query);
+    if (d == null) return null;
+    return CaroSavedGame.fromJson(_map(d));
+  }
+
+  @override
+  Future<CaroSavedGame> saveCaroGame({
+    required String gameMode,
+    required int difficulty,
+    required bool playerFirst,
+    required List<int> history,
+    int undos = 0,
+    int elapsedSeconds = 0,
+    int hintsRemaining = 3,
+  }) async =>
+      CaroSavedGame.fromJson(_map(await _send(
+        'POST',
+        '/caro/save-game',
+        body: {
+          'gameMode': gameMode,
+          'difficulty': difficulty,
+          'playerFirst': playerFirst,
+          'historyData': jsonEncode(history),
+          'undos': undos,
+          'elapsedSeconds': elapsedSeconds,
+          'hintsRemaining': hintsRemaining,
+        },
+      )));
+
+  @override
+  Future<bool> deleteCaroSavedGame({String? mode}) async {
+    final query = mode != null ? {'mode': mode} : null;
+    final d = await _send('DELETE', '/caro/saved-game', query: query);
+    if (d is Map && d['success'] == true) return true;
+    return false;
   }
 }

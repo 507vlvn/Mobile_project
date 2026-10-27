@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend_new/caro/models/caro_mode.dart';
 import 'package:frontend_new/caro/models/challenge_context.dart';
 import 'package:frontend_new/caro/models/difficulty.dart';
+import 'package:frontend_new/core/network/api_client.dart';
+import 'package:frontend_new/core/network/models.dart';
 import 'package:frontend_new/caro/services/score_reporter.dart';
 import 'package:frontend_new/caro/widgets/game_timer.dart';
 import 'logic/caro_ai.dart';
@@ -27,7 +29,17 @@ class CaroController extends ChangeNotifier {
     this.minThinkTime = const Duration(milliseconds: 350),
     this.indicatorDelay = const Duration(milliseconds: 300),
     this.challenge,
+    this.userId,
   }) : _runner = aiRunner ?? runCaroAiInIsolate;
+
+  /// ID tài khoản đang chơi (null nếu là khách/chưa đăng nhập).
+  int? userId;
+
+  void switchUser(int? newUserId) {
+    if (userId != newUserId) {
+      userId = newUserId;
+    }
+  }
 
   /// Giới hạn số quân tối đa trên bàn cho mỗi bên trong chế độ Cờ sinh tồn.
   static const int kFadingStoneLimit = 6;
@@ -36,7 +48,12 @@ class CaroController extends ChangeNotifier {
   /// định từ `challenge.seed` + thế cờ, không lưu/khôi phục ván.
   final ChallengeContext? challenge;
 
-  static const _saveKey = 'caro_save';
+  static const _legacySaveKey = 'caro_save';
+
+  static String saveKeyFor(int? userId) =>
+      userId != null ? 'caro_save_user_$userId' : 'caro_save_guest';
+
+  String get currentSaveKey => saveKeyFor(userId);
 
   final CaroAiRunner _runner;
 
@@ -410,51 +427,64 @@ class CaroController extends ChangeNotifier {
       );
 
   // -------------------------------------------------------------------------
-  // Lưu / khôi phục
+  // Lưu / khôi phục theo tài khoản
   // -------------------------------------------------------------------------
 
-  Future<void> save() async {
+  Future<void> save({int? customUserId}) async {
     if (challenge != null) return;
     if (_phase != CaroPhase.playing || _history.isEmpty) return;
     try {
+      final targetUser = customUserId ?? userId;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _saveKey,
-        jsonEncode({
-          'difficulty': difficulty.value,
-          'playerFirst': playerFirst,
-          'gameMode': gameMode.name,
-          'hintsRemaining': _hintsRemaining,
-          'history': _history,
-          'undos': _undos,
-          'seconds': clock.seconds,
-        }),
-      );
+      final payload = jsonEncode({
+        'difficulty': difficulty.value,
+        'playerFirst': playerFirst,
+        'gameMode': gameMode.name,
+        'hintsRemaining': _hintsRemaining,
+        'history': _history,
+        'undos': _undos,
+        'seconds': clock.seconds,
+      });
+      await prefs.setString(saveKeyFor(targetUser), payload);
+      if (targetUser == null) {
+        await prefs.setString(_legacySaveKey, payload);
+      }
     } catch (_) {}
   }
 
-  Future<void> clearSave() async {
+  Future<void> clearSave({int? customUserId}) async {
     if (challenge != null) return;
     try {
+      final targetUser = customUserId ?? userId;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_saveKey);
+      await prefs.remove(saveKeyFor(targetUser));
+      if (targetUser == null) {
+        await prefs.remove(_legacySaveKey);
+      }
     } catch (_) {}
   }
 
-  static Future<bool> hasSavedGame() async {
+  static Future<bool> hasSavedGame({int? userId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_saveKey) != null;
+      final key = saveKeyFor(userId);
+      if (prefs.getString(key) != null) return true;
+      if (userId == null && prefs.getString(_legacySaveKey) != null) return true;
+      return false;
     } catch (_) {
       return false;
     }
   }
 
-  /// Khôi phục ván đang dở. Trả về false nếu dữ liệu hỏng.
-  Future<bool> restore() async {
+  /// Khôi phục ván đang dở theo tài khoản. Trả về false nếu dữ liệu hỏng.
+  Future<bool> restore({int? customUserId}) async {
     try {
+      final targetUser = customUserId ?? userId;
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_saveKey);
+      var raw = prefs.getString(saveKeyFor(targetUser));
+      if (raw == null && targetUser == null) {
+        raw = prefs.getString(_legacySaveKey);
+      }
       if (raw == null) return false;
       final m = jsonDecode(raw) as Map<String, dynamic>;
       final hist = (m['history'] as List).cast<int>();
@@ -483,7 +513,7 @@ class CaroController extends ChangeNotifier {
       // Kiểm tra xem ván đã thắng chưa
       for (final i in _history) {
         if (caroMakesWin(cells, i)) {
-          await clearSave();
+          await clearSave(customUserId: targetUser);
           return false;
         }
       }
@@ -497,6 +527,78 @@ class CaroController extends ChangeNotifier {
       clock.start();
       notifyListeners();
       if (!isPvP && _playerOf(_history.length) == kCaroAi) _aiTurn();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Lưu trạng thái ván cờ hiện tại lên Database
+  Future<void> saveGameToServer(ApiClient api) async {
+    if (challenge != null || _phase != CaroPhase.playing || _history.isEmpty) return;
+    try {
+      await api.saveCaroGame(
+        gameMode: gameMode.name,
+        difficulty: difficulty.value,
+        playerFirst: playerFirst,
+        history: _history,
+        undos: _undos,
+        elapsedSeconds: clock.seconds,
+        hintsRemaining: _hintsRemaining,
+      );
+    } catch (_) {}
+  }
+
+  /// Xóa ván cờ dở dang trên Database khi hoàn thành hoặc bắt đầu lại
+  Future<void> deleteGameFromServer(ApiClient api) async {
+    if (challenge != null) return;
+    try {
+      await api.deleteCaroSavedGame(mode: gameMode.name);
+    } catch (_) {}
+  }
+
+  /// Khôi phục ván cờ từ CaroSavedGame tải từ Server
+  bool restoreFromSavedGame(CaroSavedGame saved) {
+    try {
+      final hist = saved.history;
+      final savedMode = CaroGameMode.fromName(saved.gameMode);
+
+      if (savedMode != CaroGameMode.fading) {
+        final seen = <int>{};
+        for (final i in hist) {
+          if (i < 0 || i >= kCaroCells || !seen.add(i)) return false;
+        }
+      }
+
+      _gen++;
+      gameMode = savedMode;
+      difficulty = Difficulty.fromValue(saved.difficulty);
+      playerFirst = saved.playerFirst;
+      _hintsRemaining = saved.hintsRemaining;
+      _hintCell = null;
+      _history
+        ..clear()
+        ..addAll(hist);
+
+      _rebuildBoardFromHistory();
+
+      for (final i in _history) {
+        if (caroMakesWin(cells, i)) {
+          clearSave();
+          return false;
+        }
+      }
+      _undos = saved.undos;
+      _result = null;
+      _winLine = null;
+      _thinking = false;
+      version++;
+      clock.reset(startAt: Duration(seconds: saved.elapsedSeconds));
+      _phase = CaroPhase.playing;
+      clock.start();
+      notifyListeners();
+      if (!isPvP && _playerOf(_history.length) == kCaroAi) _aiTurn();
+      save();
       return true;
     } catch (_) {
       return false;

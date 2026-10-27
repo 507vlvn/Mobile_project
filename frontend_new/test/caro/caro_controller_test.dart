@@ -1,3 +1,4 @@
+﻿import 'package:frontend_new/core/network/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_new/caro/models/caro_mode.dart';
 import 'package:frontend_new/caro/models/difficulty.dart';
@@ -157,6 +158,88 @@ void main() {
     // Đặt quân thì xoá hint
     c.placePlayer(hint);
     expect(c.hintCell, isNull);
+    c.dispose();
+  });
+
+  test('tiến trình ván chơi cô lập tuyệt đối giữa các tài khoản (User 1 vs User 2)', () async {
+    // 1. Tài khoản 1 (userId: 1) đăng nhập và chơi nửa chừng
+    final user1Ctrl = CaroController(
+      userId: 1,
+      aiRunner: (r) async => chooseCaroMove(r),
+      minThinkTime: Duration.zero,
+    );
+    user1Ctrl.newGame(difficulty: Difficulty.hard, playerFirst: true);
+    user1Ctrl.placePlayer(caroIndex(7, 7));
+    await settle();
+    await user1Ctrl.save();
+
+    // User 1 có ván lưu
+    expect(await CaroController.hasSavedGame(userId: 1), isTrue);
+
+    // 2. Tài khoản 2 (userId: 2) đăng nhập -> tuyệt đối KHÔNG có tiến trình của Tài khoản 1
+    expect(await CaroController.hasSavedGame(userId: 2), isFalse);
+
+    final user2Ctrl = CaroController(
+      userId: 2,
+      aiRunner: (r) async => chooseCaroMove(r),
+      minThinkTime: Duration.zero,
+    );
+    expect(await user2Ctrl.restore(), isFalse);
+
+    // Tài khoản 2 chơi ván riêng của mình
+    user2Ctrl.newGame(difficulty: Difficulty.easy, playerFirst: true);
+    user2Ctrl.placePlayer(caroIndex(3, 3));
+    await settle();
+    await user2Ctrl.save();
+
+    // Cả 2 tài khoản đều có ván lưu riêng biệt
+    expect(await CaroController.hasSavedGame(userId: 1), isTrue);
+    expect(await CaroController.hasSavedGame(userId: 2), isTrue);
+
+    // Khôi phục cho Tài khoản 1 -> Đúng bàn cờ của User 1
+    final restoreUser1 = CaroController(userId: 1, minThinkTime: Duration.zero);
+    expect(await restoreUser1.restore(), isTrue);
+    expect(restoreUser1.history.first, caroIndex(7, 7));
+    expect(restoreUser1.difficulty, Difficulty.hard);
+
+    // Khôi phục cho Tài khoản 2 -> Đúng bàn cờ của User 2
+    final restoreUser2 = CaroController(userId: 2, minThinkTime: Duration.zero);
+    expect(await restoreUser2.restore(), isTrue);
+    expect(restoreUser2.history.first, caroIndex(3, 3));
+    expect(restoreUser2.difficulty, Difficulty.easy);
+
+    // 3. User 1 xoá ván của mình -> Không ảnh hưởng ván của User 2
+    await restoreUser1.clearSave();
+    expect(await CaroController.hasSavedGame(userId: 1), isFalse);
+    expect(await CaroController.hasSavedGame(userId: 2), isTrue);
+
+    user1Ctrl.dispose();
+    user2Ctrl.dispose();
+    restoreUser1.dispose();
+    restoreUser2.dispose();
+  });
+
+  test('khôi phục ván chơi từ CaroSavedGame tải từ server', () async {
+    final c = make();
+    final serverSave = CaroSavedGame(
+      id: 99,
+      gameMode: 'pve',
+      difficulty: 3,
+      playerFirst: true,
+      history: [caroIndex(7, 7), caroIndex(7, 8)],
+      undos: 1,
+      elapsedSeconds: 120,
+      hintsRemaining: 2,
+    );
+
+    final ok = c.restoreFromSavedGame(serverSave);
+    expect(ok, isTrue);
+    expect(c.history, [caroIndex(7, 7), caroIndex(7, 8)]);
+    expect(c.difficulty, Difficulty.hard);
+    expect(c.undos, 1);
+    expect(c.hintsRemaining, 2);
+    expect(c.clock.seconds, 120);
+    expect(c.isPlaying, isTrue);
     c.dispose();
   });
 }

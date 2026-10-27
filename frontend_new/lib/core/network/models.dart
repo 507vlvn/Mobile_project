@@ -1,3 +1,4 @@
+﻿import 'dart:convert';
 import '../models/presence.dart';
 import '../models/rank.dart';
 
@@ -791,3 +792,68 @@ class DifficultyStats {
       );
 }
 
+
+
+/// Ván Caro dở dang (khớp CaroSavedGameDto).
+class CaroSavedGame {
+  final int id;
+  final String gameMode;
+  final int difficulty;
+  final bool playerFirst;
+  final List<int> history;
+  final int undos;
+  final int elapsedSeconds;
+  final int hintsRemaining;
+  final DateTime? updatedAt;
+
+  const CaroSavedGame({
+    required this.id,
+    required this.gameMode,
+    required this.difficulty,
+    required this.playerFirst,
+    required this.history,
+    required this.undos,
+    required this.elapsedSeconds,
+    required this.hintsRemaining,
+    this.updatedAt,
+  });
+
+  factory CaroSavedGame.fromJson(Map<String, dynamic> json) {
+    List<int> parseHistory(dynamic raw) {
+      if (raw is List) return raw.map((e) => (e as num).toInt()).toList();
+      if (raw is String) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) return decoded.map((e) => (e as num).toInt()).toList();
+        } catch (_) {}
+      }
+      return const [];
+    }
+
+    return CaroSavedGame(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      gameMode: json['gameMode'] as String? ?? 'pve',
+      difficulty: (json['difficulty'] as num?)?.toInt() ?? 2,
+      playerFirst: json['playerFirst'] as bool? ?? true,
+      history: parseHistory(json['historyData'] ?? json['history']),
+      undos: (json['undos'] as num?)?.toInt() ?? 0,
+      elapsedSeconds: (json['elapsedSeconds'] as num?)?.toInt() ?? 0,
+      hintsRemaining: (json['hintsRemaining'] as num?)?.toInt() ?? 3,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'] as String)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'gameMode': gameMode,
+        'difficulty': difficulty,
+        'playerFirst': playerFirst,
+        'historyData': jsonEncode(history),
+        'undos': undos,
+        'elapsedSeconds': elapsedSeconds,
+        'hintsRemaining': hintsRemaining,
+        if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+      };
+}
