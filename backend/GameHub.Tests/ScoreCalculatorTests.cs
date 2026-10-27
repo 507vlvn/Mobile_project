@@ -33,6 +33,22 @@ public class ScoreCalculatorTests
     public void Calculate_ReturnsExpected(int diff, int time, int mistakes, string result, string game, int moves, int expected)
         => Assert.Equal(expected, ScoreCalculator.Calculate(diff, time, mistakes, result, game, moves));
 
+    [Theory]
+    // mỗi gợi ý nhân 0.85: 1000 -> 850; chậm gấp đôi + 2 gợi ý: 1000 × 0.5 × 0.7225 = 361
+    [InlineData(1, 360, 0, "COMPLETED", "SUDOKU", 0, 1, 850)]
+    [InlineData(1, 720, 0, "COMPLETED", "SUDOKU", 0, 2, 361)]
+    // gợi ý và lỗi cộng dồn: 2000 × 0.92 × 0.85 = 1564
+    [InlineData(2, 240, 1, "COMPLETED", "RUBIK", 0, 1, 1564)]
+    // Caro thắng máy dùng 3 gợi ý: 1000 × 0.85^3 = 614
+    [InlineData(1, 5, 0, "WIN", "CARO", 20, 3, 614)]
+    // thua thì vẫn 0, gợi ý không làm âm
+    [InlineData(1, 50, 0, "LOSE", "CARO", 10, 3, 0)]
+    // số gợi ý âm (dữ liệu bẩn) coi như 0
+    [InlineData(1, 360, 0, "COMPLETED", "SUDOKU", 0, -5, 1000)]
+    public void Calculate_Hints_ReduceScore(int diff, int time, int mistakes, string result, string game, int moves,
+        int hints, int expected)
+        => Assert.Equal(expected, ScoreCalculator.Calculate(diff, time, mistakes, result, game, moves, hints));
+
     [Fact]
     public void Par_Table_MatchesDesign()
     {

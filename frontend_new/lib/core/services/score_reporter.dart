@@ -73,6 +73,7 @@ class GameRecord {
       timeSeconds: timeSeconds,
       mistakes: mistakes,
       moves: moves,
+      hints: hints,
       completed: won || draw,
     );
     if (!draw) return full;

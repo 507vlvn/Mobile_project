@@ -2,7 +2,8 @@ namespace GameHub.Api.Services;
 
 /// <summary>
 /// Điểm kỷ lục v2 (TASKS_V2 §2.1):
-/// điểm = round(base × clamp(par / thực tế, 0.25, 1.5) × 0.92^lỗi); base = 1000/2000/3000.
+/// điểm = round(base × clamp(par / thực tế, 0.25, 1.5) × 0.92^lỗi × 0.85^gợi ý); base = 1000/2000/3000.
+/// Gợi ý phạt nặng hơn lỗi vì cho thẳng đáp án.
 /// Sudoku/Xếp hình/Rubik: par theo thời gian (giây). Caro: par theo số nước đi (20/30/45).
 /// LOSE/ABANDONED = 0; DRAW của Caro = 30%.
 /// </summary>
@@ -10,7 +11,7 @@ public static class ScoreCalculator
 {
     public static readonly string[] ValidResults = ["COMPLETED", "WIN", "LOSE", "DRAW", "ABANDONED"];
 
-    public const double MinFactor = 0.25, MaxFactor = 1.5, MistakeFactor = 0.92, CaroDrawRatio = 0.30;
+    public const double MinFactor = 0.25, MaxFactor = 1.5, MistakeFactor = 0.92, HintFactor = 0.85, CaroDrawRatio = 0.30;
 
     public static int BaseScore(int difficulty) => difficulty switch
     {
@@ -37,7 +38,7 @@ public static class ScoreCalculator
     public static int ParMoves(int difficulty) => new[] { 20, 30, 45 }[Math.Clamp(difficulty, 1, 3) - 1];
 
     public static int Calculate(int difficulty, int timeSpentSeconds, int mistakesCount, string result,
-        string? gameCode = null, int movesCount = 0)
+        string? gameCode = null, int movesCount = 0, int hintsUsed = 0)
     {
         if (result is "ABANDONED" or "LOSE") return 0;
         var b = BaseScore(difficulty);
@@ -50,7 +51,8 @@ public static class ScoreCalculator
         else
             factor = Clamp((double)ParSeconds(gameCode, difficulty) / Math.Max(timeSpentSeconds, 1));
 
-        var score = b * factor * Math.Pow(MistakeFactor, Math.Max(mistakesCount, 0));
+        var score = b * factor * Math.Pow(MistakeFactor, Math.Max(mistakesCount, 0))
+                    * Math.Pow(HintFactor, Math.Max(hintsUsed, 0));
         if (result == "DRAW" && isCaro) score *= CaroDrawRatio;
         return (int)Math.Round(score, MidpointRounding.AwayFromZero);
     }

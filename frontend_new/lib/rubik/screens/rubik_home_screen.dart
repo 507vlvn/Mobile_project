@@ -69,7 +69,7 @@ class _RubikHomeScreenState extends State<RubikHomeScreen> {
               icon: Icons.swipe_rounded,
               title: 'Luyện giải',
               description:
-                  'App xáo đề theo độ khó, bạn tự vuốt để giải. Bí thì dùng gợi ý (mỗi lần tính 1 lỗi).',
+                  'App xáo đề theo độ khó, bạn tự vuốt để giải. Bí thì dùng gợi ý (mỗi lần trừ 15% điểm).',
               highlight: true,
               onTap: _openPractice,
             ),

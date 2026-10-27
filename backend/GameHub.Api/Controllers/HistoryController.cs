@@ -47,7 +47,8 @@ public class HistoryController(
                 return Problem(statusCode: 409, title: "Bạn đã nộp kết quả cho thách đấu này");
         }
 
-        var score = ScoreCalculator.Calculate(req.Difficulty, req.TimeSpentSeconds, req.MistakesCount, result, gameCode, req.MovesCount);
+        var score = ScoreCalculator.Calculate(req.Difficulty, req.TimeSpentSeconds, req.MistakesCount, result, gameCode,
+            req.MovesCount, req.HintsUsed);
 
         var isBest = false;
         if (Scoring.Contains(result))

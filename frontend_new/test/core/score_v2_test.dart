@@ -81,6 +81,25 @@ void main() {
       expect(score('SUDOKU', Difficulty.hard, time: 1500, mistakes: 5), 1977);
     });
 
+    test('mỗi gợi ý nhân 0.85 (khớp ScoreCalculator phía server)', () {
+      int hinted(int hints, {int mistakes = 0, int time = 360}) => computeScore(
+          gameCode: 'SUDOKU', difficulty: Difficulty.easy, timeSeconds: time, mistakes: mistakes, hints: hints);
+      expect(hinted(0), 1000);
+      expect(hinted(1), 850);
+      expect(hinted(2, time: 720), 361, reason: '1000 × 0.5 × 0.85²');
+      expect(computeScore(gameCode: 'RUBIK', difficulty: Difficulty.medium, timeSeconds: 240, mistakes: 1, hints: 1),
+          1564, reason: 'lỗi và gợi ý cộng dồn: 2000 × 0.92 × 0.85');
+      expect(computeScore(gameCode: 'CARO', difficulty: Difficulty.easy, timeSeconds: 5, mistakes: 0, moves: 20, hints: 3),
+          614, reason: 'Caro dùng hết 3 gợi ý');
+    });
+
+    test('bản ghi gửi điểm tính cả gợi ý khi chấm tạm ở máy', () {
+      const r = GameRecord(
+          gameCode: 'SUDOKU', difficulty: Difficulty.easy, timeSeconds: 360, mistakes: 0, moves: 50, hints: 1,
+          outcome: GameOutcome.completed);
+      expect(r.localScore, 850);
+    });
+
     test('thời gian bằng 0 không chia cho 0 (tính như nhanh nhất)', () {
       expect(score('SUDOKU', Difficulty.easy, time: 0), 1500);
     });

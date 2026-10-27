@@ -826,7 +826,8 @@ void _showRulesSheet(BuildContext context) {
             const SizedBox(height: AppSpacing.lg),
             section('Kỷ lục', const [
               'Mỗi người chỉ tính ván chơi đơn có điểm cao nhất.',
-              'Điểm = điểm gốc theo độ khó × hệ số thời gian × hệ số lỗi. Giải nhanh, ít lỗi thì điểm cao.',
+              'Điểm = điểm gốc theo độ khó × hệ số thời gian × hệ số lỗi × hệ số gợi ý. Giải nhanh, ít lỗi thì điểm cao.',
+              'Mỗi lỗi trừ 8% điểm, mỗi lần dùng gợi ý trừ 15% điểm.',
               'Bằng điểm thì ai nhanh hơn xếp trên, rồi tới ai đạt trước.',
             ]),
             section('Đối kháng', const [

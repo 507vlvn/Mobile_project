@@ -114,7 +114,7 @@ class PracticeController extends ChangeNotifier {
 
   String? get redoMove => _redo.isEmpty ? null : _redo.last;
 
-  /// Lấy gợi ý bằng bộ giải Kociemba từ trạng thái hiện tại. Mỗi lần tính 1 lỗi.
+  /// Lấy gợi ý bằng bộ giải Kociemba từ trạng thái hiện tại. Mỗi lần bị trừ điểm (×0.85).
   Future<String?> requestHint() async {
     if (_phase != PracticePhase.playing || _hintLoading) return null;
     if (_hintMove != null) {

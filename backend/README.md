@@ -64,7 +64,8 @@ Thách đấu (chỉ giữa bạn bè): hai bên chơi cùng một đề sinh t�
 base            = {1: 1000, 2: 2000, 3: 3000}[difficulty]
 hệ số thời gian = clamp(par / thời gian thực, 0.25, 1.5)
 hệ số lỗi       = 0.92 ^ số lỗi
-điểm            = round(base × hệ số thời gian × hệ số lỗi)
+hệ số gợi ý     = 0.85 ^ số gợi ý  (hintsUsed; gợi ý phạt nặng hơn lỗi)
+điểm            = round(base × hệ số thời gian × hệ số lỗi × hệ số gợi ý)
 LOSE / ABANDONED = 0
 ```
 

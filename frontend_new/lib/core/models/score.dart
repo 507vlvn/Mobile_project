@@ -20,6 +20,9 @@ const double kMaxTimeFactor = 1.5;
 /// Mỗi lỗi nhân điểm với hệ số này.
 const double kMistakeFactor = 0.92;
 
+/// Mỗi lần dùng gợi ý nhân điểm với hệ số này (nặng hơn lỗi vì cho thẳng đáp án).
+const double kHintFactor = 0.85;
+
 /// Caro hòa được 30% điểm.
 const double kCaroDrawShare = 0.3;
 
@@ -35,7 +38,7 @@ int parFor(String gameCode, Difficulty difficulty) {
 ///
 /// ```
 /// hệ số = clamp(par / thực tế, 0.25, 1.5)      // thực tế = giây (CARO: số nước)
-/// điểm  = round(base × hệ số × 0.92^lỗi)        // base = 1000 / 2000 / 3000
+/// điểm  = round(base × hệ số × 0.92^lỗi × 0.85^gợi ý)   // base = 1000 / 2000 / 3000
 /// ```
 /// [completed] = false (thua / bỏ cuộc) cho 0 điểm.
 int computeScore({
@@ -44,6 +47,7 @@ int computeScore({
   required int timeSeconds,
   required int mistakes,
   int moves = 0,
+  int hints = 0,
   bool completed = true,
 }) {
   if (!completed) return 0;
@@ -54,5 +58,6 @@ int computeScore({
       ? kMaxTimeFactor
       : (par / actual).clamp(kMinTimeFactor, kMaxTimeFactor).toDouble();
   final mistakeFactor = math.pow(kMistakeFactor, mistakes < 0 ? 0 : mistakes);
-  return (base * timeFactor * mistakeFactor).round();
+  final hintFactor = math.pow(kHintFactor, hints < 0 ? 0 : hints);
+  return (base * timeFactor * mistakeFactor * hintFactor).round();
 }
