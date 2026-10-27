@@ -23,3 +23,22 @@ backend/**/obj/
 **/ios/Flutter/flutter_export_environment.sh
 **/.env
 .gemini/settings.json
+
+# File Flutter tự sinh khi build / chạy (mỗi máy tự tạo lại)
+**/GeneratedPluginRegistrant.*
+**/android/gradlew
+**/android/gradlew.bat
+**/android/gradle/wrapper/gradle-wrapper.jar
+**/android/app/.cxx/
+**/.flutter-plugins-dependencies
+
+# Cài đặt IDE / Visual Studio cá nhân
+**/.vs/
+*.user
+*.suo
+.idea/
+
+# Rác hệ điều hành, log
+.DS_Store
+Thumbs.db
+*.log
