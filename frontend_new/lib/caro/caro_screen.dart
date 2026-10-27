@@ -136,6 +136,7 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _c.resume();
+      _syncLatestFromServer();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _c.pause();
@@ -148,6 +149,23 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
         }
       } catch (_) {}
     }
+  }
+
+  Future<void> _syncLatestFromServer() async {
+    if (!mounted || _challenge != null) return;
+    try {
+      final auth = context.read<AuthController>();
+      if (auth.isAuthenticated) {
+        final api = context.read<ApiClient>();
+        final serverSave = await api.getCaroSavedGame();
+        if (serverSave != null && serverSave.history.isNotEmpty) {
+          if (serverSave.history.length != _c.history.length) {
+            _c.restoreFromSavedGame(serverSave);
+            if (mounted) setState(() {});
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadPrefs() async {
@@ -224,28 +242,36 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
     if (widget.resumeSaved) {
       final uId = _effectiveUserId;
       _c.userId = uId;
-      if (await CaroController.hasSavedGame(userId: uId)) {
+      var restored = false;
+
+      // Ưu tiên cao nhất: Tải bản lưu mới nhất từ Cloud nếu đã đăng nhập
+      if (mounted) {
+        try {
+          final auth = context.read<AuthController>();
+          if (auth.isAuthenticated && uId != null) {
+            final api = context.read<ApiClient>();
+            final serverSave = await api.getCaroSavedGame();
+            if (serverSave != null && serverSave.history.isNotEmpty) {
+              if (_c.restoreFromSavedGame(serverSave)) {
+                _difficulty = _c.difficulty;
+                _playerFirst = _c.playerFirst;
+                _mode = _c.gameMode;
+                restored = true;
+                return;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Nếu không có mạng hoặc không có trên Cloud, khôi phục từ bộ nhớ thiết bị
+      if (!restored && await CaroController.hasSavedGame(userId: uId)) {
         if (await _c.restore(customUserId: uId)) {
           _difficulty = _c.difficulty;
           _playerFirst = _c.playerFirst;
           _mode = _c.gameMode;
           return;
         }
-      }
-      if (mounted) {
-        try {
-          final auth = context.read<AuthController>();
-          if (auth.isAuthenticated) {
-            final api = context.read<ApiClient>();
-            final serverSave = await api.getCaroSavedGame();
-            if (serverSave != null && _c.restoreFromSavedGame(serverSave)) {
-              _difficulty = _c.difficulty;
-              _playerFirst = _c.playerFirst;
-              _mode = _c.gameMode;
-              return;
-            }
-          }
-        } catch (_) {}
       }
     }
 
@@ -564,13 +590,23 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
           if (mounted) nav.pop();
           return;
         }
+        final auth = context.read<AuthController>();
+        final api = context.read<ApiClient>();
         final ok = await confirmExit(
           context,
           title: 'Rời khỏi ván?',
           message:
               'Ván đang chơi được lưu lại để tiếp tục sau, và chưa được tính điểm.',
         );
-        if (ok && mounted) nav.pop();
+        if (ok && mounted) {
+          _c.save(customUserId: _effectiveUserId);
+          try {
+            if (auth.isAuthenticated) {
+              await _c.saveGameToServer(api);
+            }
+          } catch (_) {}
+          if (mounted) nav.pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(

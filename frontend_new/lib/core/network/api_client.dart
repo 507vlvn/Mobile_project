@@ -410,10 +410,15 @@ class HttpApiClient implements ApiClient {
   // ---- Caro ----
   @override
   Future<CaroSavedGame?> getCaroSavedGame({String? mode}) async {
-    final query = mode != null ? {'mode': mode} : null;
-    final d = await _send('GET', '/caro/saved-game', query: query);
-    if (d == null) return null;
-    return CaroSavedGame.fromJson(_map(d));
+    try {
+      final query = mode != null ? {'mode': mode} : null;
+      final d = await _send('GET', '/caro/saved-game', query: query);
+      if (d == null) return null;
+      return CaroSavedGame.fromJson(_map(d));
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
   }
 
   @override
