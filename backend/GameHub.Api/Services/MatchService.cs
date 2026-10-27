@@ -516,10 +516,6 @@ public sealed class MatchService
                 me.Mistakes++;
                 m.SharedMistakes++;
                 m.SudokuMoves.Add((row, col, val, userId, true));
-                if (m.SharedMistakes >= 3)
-                {
-                    EndLocked(m, null, "MISTAKES_LIMIT", ctx);
-                }
             }
             else
             {
@@ -543,6 +539,11 @@ public sealed class MatchService
                     movesCount = m.SudokuMoves.Count,
                     nextTurnUserId = nextTurn,
                 });
+            }
+
+            if (m.SharedMistakes >= 3)
+            {
+                EndLocked(m, null, "MISTAKES_LIMIT", ctx);
             }
         }
         await CompleteAsync(ctx);

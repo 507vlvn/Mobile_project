@@ -123,15 +123,29 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       });
     });
 
+    // Khôi phục nước đi đã chơi nếu người chơi vào lại ván đấu (reconnect)
+    final coop = widget.session.match?.coop;
+    if (coop != null) {
+      _sharedMistakes = coop.mistakes;
+      for (final mv in coop.moves) {
+        if (!mv.isMistake && mv.row >= 0 && mv.row < 9 && mv.col >= 0 && mv.col < 9) {
+          final cell = _board[mv.row][mv.col];
+          cell.currentValue = mv.value;
+          cell.filledByUserId = mv.userId;
+          cell.notes.clear();
+        }
+      }
+    }
+
     // Khởi tạo lượt chơi: ưu tiên từ server, mặc định người chơi đầu tiên đi trước
-    _currentTurnUserId = widget.session.match?.coop?.currentTurnUserId ??
+    _currentTurnUserId = coop?.currentTurnUserId ??
         widget.session.match?.players.firstOrNull?.userId ??
         _myId;
 
     // Tự động chọn ô trống đầu tiên
     for (int r = 0; r < 9; r++) {
       for (int c = 0; c < 9; c++) {
-        if (!_board[r][c].isClue) {
+        if (!_board[r][c].isClue && !_board[r][c].isFilled) {
           _selectedRow = r;
           _selectedCol = c;
           return;
@@ -196,16 +210,6 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
             cell.notes.clear();
           }
         });
-        if (_sharedMistakes >= _maxMistakes) {
-          _clockTimer?.cancel();
-          _showMatchEndedDialog(MatchEndedEvent(
-            matchId: widget.session.match?.matchId ?? '',
-            winnerId: null,
-            reason: 'MISTAKES_LIMIT',
-            ranked: false,
-          ));
-          return;
-        }
         _checkBoardCompletion();
       }),
 
@@ -639,17 +643,23 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     final text = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Đếm số ô mỗi người đã điền
+    // Tính toán tiến độ và phân bố số trong 1 vòng lặp duy nhất (tránh lặp 81 ô nhiều lần)
     int myCount = 0;
     int oppCount = 0;
     int filledTotal = 0;
+    final placedCounts = List<int>.filled(10, 0);
+
     for (int r = 0; r < 9; r++) {
       for (int c = 0; c < 9; c++) {
-        if (_board[r][c].isFilled) {
+        final cell = _board[r][c];
+        if (cell.isFilled) {
           filledTotal++;
-          if (_board[r][c].filledByUserId == myId) {
+          if (cell.currentValue >= 1 && cell.currentValue <= 9) {
+            placedCounts[cell.currentValue]++;
+          }
+          if (cell.filledByUserId == myId) {
             myCount++;
-          } else if (_board[r][c].filledByUserId != null) {
+          } else if (cell.filledByUserId != null) {
             oppCount++;
           }
         }
@@ -862,7 +872,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
               // Bàn phím số 1..9
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.screen, 4, AppSpacing.screen, AppSpacing.md),
-                child: _buildKeypad(),
+                child: _buildKeypad(placedCounts),
               ),
             ],
           ),
@@ -1124,10 +1134,14 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         : 0;
     final isSameNumber = selectedVal > 0 && cell.currentValue == selectedVal;
 
-    // Kiểm tra ô bị xung đột số với số bị nhập sai (để người chơi thấy rõ tại sao số đó sai)
+    // Kiểm tra ô bị xung đột số với số bị nhập sai (cùng hàng/cột/khối với ô bị nhập sai)
+    final isInErrorRowOrCol = (_tempErrorRow == r || _tempErrorCol == c);
+    final isInErrorBox = _tempErrorRow != null &&
+        _tempErrorCol != null &&
+        (r ~/ 3 == _tempErrorRow! ~/ 3 && c ~/ 3 == _tempErrorCol! ~/ 3);
     final isConflictCell = !isTempError &&
         _tempErrorValue != null &&
-        (isInSameRowOrCol || isInSameBox) &&
+        (isInErrorRowOrCol || isInErrorBox) &&
         cell.currentValue == _tempErrorValue;
 
     // Màu nền ô
@@ -1310,7 +1324,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     );
   }
 
-  Widget _buildKeypad() {
+  Widget _buildKeypad(List<int> placedCounts) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AnimatedOpacity(
@@ -1349,11 +1363,11 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                           ),
                         ),
                         Text(
-                          '${_countPlaced(i)}/9',
+                          '${placedCounts[i]}/9',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: _countPlaced(i) >= 9
+                            color: placedCounts[i] >= 9
                                 ? const Color(0xFF10B981)
                                 : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                             height: 1.0,
