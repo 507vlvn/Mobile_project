@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'sudoku_models.dart';
+import '../models/sudoku_models.dart';
 
 class SudokuPuzzleData {
   final List<List<int>> puzzle;

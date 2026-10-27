@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../logic/sudoku_controller.dart';
-import '../logic/sudoku_models.dart';
+import '../models/sudoku_models.dart';
 
 class SudokuBoard extends StatelessWidget {
   final SudokuController controller;

@@ -27,6 +27,7 @@ class CrossMathCell {
 
   bool get isBlank => type == CrossMathCellType.blank;
   bool get isCorrect => isBlank && userText != null && userText == targetText;
+  bool get isError => isBlank && userText != null && userText != targetText;
 
   int? get targetValue => targetText != null ? int.tryParse(targetText!) : null;
   int? get userValue => userText != null ? int.tryParse(userText!) : null;

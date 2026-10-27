@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/difficulty.dart';
 import '../../core/services/score_reporter.dart';
-import '../logic/crossmath_models.dart';
+import '../models/crossmath_models.dart';
 import '../logic/crossmath_levels.dart';
 import '../logic/sudoku_learning_manager.dart';
 
@@ -133,6 +134,10 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
 
     setState(() {
       _selectedCell!.userText = value;
+
+      if (_selectedCell!.isError) {
+        HapticFeedback.mediumImpact();
+      }
 
       // Tìm ô trống tiếp theo chưa điền để tự động focus
       final nextBlank = _levelData.cells.firstWhere(
@@ -443,10 +448,12 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
                       child: Text(
                         _selectedCell == null
                             ? 'Nhấn để chọn một ô trống'
-                            : 'Màn $_currentLevel: Điền vào ô đang chọn',
+                            : (_selectedCell!.isError
+                                ? 'Màn $_currentLevel: Ô chọn chưa đúng, hãy thử số khác'
+                                : 'Màn $_currentLevel: Điền vào ô đang chọn'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -604,20 +611,36 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
 
     final isSelected = _selectedCell == cell;
     final isBlank = cell.isBlank;
+    final isError = cell.isError;
+    final isCorrect = cell.isCorrect;
 
-    // Màu nền chuẩn theo ảnh mẫu:
-    // - Ô số có sẵn & toán tử cố định: màu vàng kem/be (#FFF9E6)
-    // - Ô trống chưa điền: màu be rất nhạt/trắng ngà (#FDFCF7)
-    // - Ô trống đã điền: màu xanh nhạt (#F0FDF4)
-    final bgColor = isBlank
-        ? (cell.userText != null ? const Color(0xFFF0FDF4) : const Color(0xFFFDFCF7))
-        : const Color(0xFFFFF9E6);
+    // Màu nền, viền và chữ theo trạng thái
+    final Color bgColor;
+    final Color borderColor;
+    final Color textColor;
+    final double borderWidth;
 
-    final borderColor = isSelected
-        ? const Color(0xFF1E88E5)
-        : (isBlank ? const Color(0xFFCBD5E1) : const Color(0xFF333333));
-
-    final borderWidth = isSelected ? 2.5 : (isBlank ? 1.0 : 1.2);
+    if (!isBlank) {
+      bgColor = const Color(0xFFFFF9E6);
+      borderColor = isSelected ? const Color(0xFF1E88E5) : const Color(0xFF333333);
+      textColor = Colors.black;
+      borderWidth = isSelected ? 2.5 : 1.2;
+    } else if (isError) {
+      bgColor = const Color(0xFFFEE2E2);
+      borderColor = isSelected ? const Color(0xFFDC2626) : const Color(0xFFEF4444);
+      textColor = const Color(0xFFB91C1C);
+      borderWidth = isSelected ? 2.5 : 2.0;
+    } else if (isCorrect) {
+      bgColor = const Color(0xFFF0FDF4);
+      borderColor = isSelected ? const Color(0xFF1E88E5) : const Color(0xFF86EFAC);
+      textColor = const Color(0xFF15803D);
+      borderWidth = isSelected ? 2.5 : 1.2;
+    } else {
+      bgColor = const Color(0xFFFDFCF7);
+      borderColor = isSelected ? const Color(0xFF1E88E5) : const Color(0xFFCBD5E1);
+      textColor = Colors.transparent;
+      borderWidth = isSelected ? 2.5 : 1.0;
+    }
 
     return Container(
       width: size,
@@ -634,6 +657,15 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
                 color: bgColor,
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(color: borderColor, width: borderWidth),
+                boxShadow: isError
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.25),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ]
+                    : null,
               ),
               child: Center(
                 child: Text(
@@ -642,29 +674,30 @@ class _CrossMathScreenState extends State<CrossMathScreen> with WidgetsBindingOb
                   style: TextStyle(
                     fontSize: size * 0.44,
                     fontWeight: FontWeight.bold,
-                    color: isBlank
-                        ? (cell.userText != null
-                            ? const Color(0xFF0F172A)
-                            : Colors.transparent)
-                        : Colors.black,
+                    color: textColor,
                   ),
                 ),
               ),
             ),
           ),
 
-          // Hiển thị bàn tay chỉ điểm hướng dẫn ở ô đang được chọn giống ảnh mẫu
-          if (isSelected && cell.userText == null)
+          // Huy hiệu cảnh báo lỗi ở góc trên bên phải khi người chơi điền sai
+          if (isError)
             Positioned(
-              right: -14,
-              bottom: -14,
-              child: IgnorePointer(
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: Image.asset(
-                    'assets/images/hand_pointer.png',
-                    errorBuilder: (context, error, stackTrace) => const Text('👆', style: TextStyle(fontSize: 24)),
+              top: -4,
+              right: -4,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 10,
+                    color: Colors.white,
                   ),
                 ),
               ),

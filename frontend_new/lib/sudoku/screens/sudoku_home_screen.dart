@@ -8,11 +8,11 @@ import '../../core/realtime/match_models.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../pvp/pvp_common.dart';
 import '../logic/sudoku_controller.dart';
-import '../logic/sudoku_models.dart';
+import '../models/sudoku_models.dart';
 import '../logic/sudoku_stats_manager.dart';
+import '../widgets/sudoku_stats_view.dart';
 import 'sudoku_learning_screen.dart';
 import 'sudoku_screen.dart';
-import 'sudoku_stats_view.dart';
 
 class SudokuHomeScreen extends StatefulWidget {
   const SudokuHomeScreen({super.key});
