@@ -81,6 +81,8 @@ abstract interface class RealtimeService implements Listenable {
   Stream<DrawRespondedEvent> get drawResponded;
   Stream<MatchSignalEvent> get rematchRequested;
   Stream<MatchSignalEvent> get quickChats;
+  Stream<SudokuMoveEvent> get sudokuMoves;
+  Stream<SudokuCursorEvent> get sudokuCursors;
   Stream<MatchEndedEvent> get matchEnded;
 
   // ---- vòng đời ----
@@ -103,6 +105,9 @@ abstract interface class RealtimeService implements Listenable {
   Future<void> respondDraw(String matchId, bool accept);
   Future<void> rematch(String matchId);
   Future<void> quickChat(String matchId, String code);
+  Future<void> sudokuMove(String matchId, int row, int col, int val, bool isMistake);
+  Future<void> sudokuCursor(String matchId, int row, int col);
+  Future<void> sudokuFinish(String matchId, int timeSeconds);
   Future<void> rejoin(String matchId);
 }
 
@@ -160,6 +165,8 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
   final _drawResponded = StreamController<DrawRespondedEvent>.broadcast();
   final _rematchRequested = StreamController<MatchSignalEvent>.broadcast();
   final _quickChats = StreamController<MatchSignalEvent>.broadcast();
+  final _sudokuMoves = StreamController<SudokuMoveEvent>.broadcast();
+  final _sudokuCursors = StreamController<SudokuCursorEvent>.broadcast();
   final _matchEnded = StreamController<MatchEndedEvent>.broadcast();
 
   @override
@@ -199,6 +206,10 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
   Stream<MatchSignalEvent> get rematchRequested => _rematchRequested.stream;
   @override
   Stream<MatchSignalEvent> get quickChats => _quickChats.stream;
+  @override
+  Stream<SudokuMoveEvent> get sudokuMoves => _sudokuMoves.stream;
+  @override
+  Stream<SudokuCursorEvent> get sudokuCursors => _sudokuCursors.stream;
   @override
   Stream<MatchEndedEvent> get matchEnded => _matchEnded.stream;
 
@@ -245,6 +256,8 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
     listen('DrawResponded', DrawRespondedEvent.parse, _drawResponded);
     listen('RematchRequested', MatchSignalEvent.parse, _rematchRequested);
     listen('QuickChat', MatchSignalEvent.parse, _quickChats);
+    listen('SudokuMoveApplied', SudokuMoveEvent.parse, _sudokuMoves);
+    listen('SudokuCursorMoved', SudokuCursorEvent.parse, _sudokuCursors);
     listen('MatchEnded', MatchEndedEvent.parse, _matchEnded);
 
     _gateway.setOnClosed((_) {
@@ -366,6 +379,15 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
   @override
   Future<void> quickChat(String matchId, String code) => _call('QuickChat', [matchId, code]);
   @override
+  Future<void> sudokuMove(String matchId, int row, int col, int val, bool isMistake) =>
+      _call('SudokuMove', [matchId, row, col, val, isMistake]);
+  @override
+  Future<void> sudokuCursor(String matchId, int row, int col) =>
+      _call('SudokuCursor', [matchId, row, col]);
+  @override
+  Future<void> sudokuFinish(String matchId, int timeSeconds) =>
+      _call('SudokuFinish', [matchId, timeSeconds]);
+  @override
   Future<void> rejoin(String matchId) => _call('Rejoin', [matchId]);
 
   @override
@@ -390,6 +412,8 @@ class SignalRRealtimeService extends ChangeNotifier implements RealtimeService {
       _drawResponded,
       _rematchRequested,
       _quickChats,
+      _sudokuMoves,
+      _sudokuCursors,
       _matchEnded,
     ]) {
       unawaited(c.close());

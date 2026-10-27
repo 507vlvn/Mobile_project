@@ -549,6 +549,46 @@ class MatchSession extends ChangeNotifier {
     }
   }
 
+  /// Gửi nước đi Sudoku (số đã điền hoặc sai lỗi).
+  Future<bool> sendSudokuMove({
+    required int row,
+    required int col,
+    required int value,
+    required bool isMistake,
+  }) async {
+    final m = _match;
+    if (m == null || _phase != PvpPhase.active) return false;
+    try {
+      await _rt.sudokuMove(m.matchId, row, col, value, isMistake);
+      return true;
+    } on RealtimeException catch (e) {
+      _notice(e.message);
+      return false;
+    }
+  }
+
+  /// Báo ô đang chọn cho bạn cùng phòng nhìn thấy.
+  Future<void> sendSudokuCursor({required int row, required int col}) async {
+    final m = _match;
+    if (m == null || _phase != PvpPhase.active) return;
+    try {
+      await _rt.sudokuCursor(m.matchId, row, col);
+    } catch (_) {}
+  }
+
+  /// Báo hoàn thành bảng Sudoku đồng đội.
+  Future<bool> finishSudoku({required int timeSeconds}) async {
+    final m = _match;
+    if (m == null || _phase != PvpPhase.active) return false;
+    try {
+      await _rt.sudokuFinish(m.matchId, timeSeconds);
+      return true;
+    } on RealtimeException catch (e) {
+      _notice(e.message);
+      return false;
+    }
+  }
+
   /// Đăng xuất: xóa mọi trạng thái.
   void reset() {
     _phase = PvpPhase.idle;

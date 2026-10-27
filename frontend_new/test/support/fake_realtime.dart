@@ -31,6 +31,8 @@ class FakeRealtime extends ChangeNotifier implements RealtimeService {
   final drawRespondedCtl = StreamController<DrawRespondedEvent>.broadcast();
   final rematchCtl = StreamController<MatchSignalEvent>.broadcast();
   final chatCtl = StreamController<MatchSignalEvent>.broadcast();
+  final sudokuMovesCtl = StreamController<SudokuMoveEvent>.broadcast();
+  final sudokuCursorsCtl = StreamController<SudokuCursorEvent>.broadcast();
   final matchEndedCtl = StreamController<MatchEndedEvent>.broadcast();
 
   void setConnected(bool v) {
@@ -74,6 +76,10 @@ class FakeRealtime extends ChangeNotifier implements RealtimeService {
   Stream<MatchSignalEvent> get rematchRequested => rematchCtl.stream;
   @override
   Stream<MatchSignalEvent> get quickChats => chatCtl.stream;
+  @override
+  Stream<SudokuMoveEvent> get sudokuMoves => sudokuMovesCtl.stream;
+  @override
+  Stream<SudokuCursorEvent> get sudokuCursors => sudokuCursorsCtl.stream;
   @override
   Stream<MatchEndedEvent> get matchEnded => matchEndedCtl.stream;
 
@@ -120,6 +126,15 @@ class FakeRealtime extends ChangeNotifier implements RealtimeService {
   Future<void> rematch(String matchId) => _record('Rematch $matchId');
   @override
   Future<void> quickChat(String matchId, String code) => _record('QuickChat $matchId $code');
+  @override
+  Future<void> sudokuMove(String matchId, int row, int col, int val, bool isMistake) =>
+      _record('SudokuMove $matchId $row $col $val $isMistake');
+  @override
+  Future<void> sudokuCursor(String matchId, int row, int col) =>
+      _record('SudokuCursor $matchId $row $col');
+  @override
+  Future<void> sudokuFinish(String matchId, int timeSeconds) =>
+      _record('SudokuFinish $matchId $timeSeconds');
   @override
   Future<void> rejoin(String matchId) => _record('Rejoin $matchId');
 }
