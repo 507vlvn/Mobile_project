@@ -161,7 +161,7 @@ void main() {
     env.rt.matchEndedCtl.add(const MatchEndedEvent(
       matchId: 'm1',
       winnerId: 7,
-      reason: 'RESIGN',
+      reason: 'WIN',
       ranked: true,
       ratingChanges: {7: RatingChange(7, 1200, 1216), 9: RatingChange(9, 1180, 1164)},
       scores: {7: 800},
@@ -169,7 +169,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Chiến thắng!'), findsOneWidget);
-    expect(find.text('Đối thủ đầu hàng'), findsOneWidget);
+    expect(find.text('Bạn đã chiến thắng'), findsOneWidget);
     expect(find.text('+16'), findsOneWidget);
 
     await tester.tap(find.text('Tái đấu'));
@@ -183,6 +183,71 @@ void main() {
     expect(find.text('Đầu hàng?'), findsNothing, reason: 'trận đã xong: không được hỏi đầu hàng');
     expect(find.byType(CaroOnlineScreen), findsNothing);
     expect(env.session.phase, PvpPhase.idle);
+    await _dispose(tester);
+  });
+
+  testWidgets('Caro: đối thủ đầu hàng -> bảng kết quả chỉ có Về sảnh, không có Tái đấu', (tester) async {
+    final env = await _pump(tester);
+    env.rt.matchStartedCtl.add(matchInfo(currentTurnUserId: 9));
+    await _openRoute(tester);
+
+    env.rt.matchEndedCtl.add(const MatchEndedEvent(
+      matchId: 'm1',
+      winnerId: 7,
+      reason: 'RESIGN',
+      ranked: false,
+      ratingChanges: {},
+      scores: {},
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Chiến thắng!'), findsOneWidget);
+    expect(find.text('Đối thủ đầu hàng'), findsOneWidget);
+    expect(find.text('Tái đấu'), findsNothing);
+    expect(find.text('Về sảnh'), findsOneWidget);
+
+    await tester.tap(find.text('Về sảnh'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(CaroOnlineScreen), findsNothing);
+    await _dispose(tester);
+  });
+
+  testWidgets('Caro: tự đầu hàng bằng nút Back -> vẫn thấy bảng kết quả (chỉ Về sảnh) rồi mới thoát',
+      (tester) async {
+    final env = await _pump(tester);
+    env.rt.matchStartedCtl.add(matchInfo(currentTurnUserId: 7));
+    await _openRoute(tester);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Đầu hàng?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Đầu hàng'));
+    await tester.pump();
+    expect(env.rt.calls.last, 'Resign m1');
+
+    env.rt.matchEndedCtl.add(const MatchEndedEvent(
+      matchId: 'm1',
+      winnerId: 9,
+      reason: 'RESIGN',
+      ranked: false,
+      ratingChanges: {},
+      scores: {},
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.byType(CaroOnlineScreen), findsOneWidget, reason: 'chưa thoát: phải cho xem kết quả trước');
+    expect(find.text('Thất bại'), findsOneWidget);
+    expect(find.text('Bạn đã đầu hàng'), findsOneWidget);
+    expect(find.text('Tái đấu'), findsNothing);
+
+    await tester.tap(find.text('Về sảnh'));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(CaroOnlineScreen), findsNothing);
     await _dispose(tester);
   });
 

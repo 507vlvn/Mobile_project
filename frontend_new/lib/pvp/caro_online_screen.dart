@@ -96,7 +96,8 @@ class _CaroOnlineScreenState extends State<CaroOnlineScreen> {
 
   Future<void> _showResult() async {
     _sheetOpen = true;
-    final leave = await showMatchResultSheet(context, s);
+    // Caro: đầu hàng thì cả hai chỉ còn nút "Về sảnh", không tái đấu.
+    final leave = await showMatchResultSheet(context, s, rematchAfterResign: false);
     _sheetOpen = false;
     if (!mounted) return;
     if (leave == true) {
@@ -155,8 +156,9 @@ class _CaroOnlineScreenState extends State<CaroOnlineScreen> {
           if (s.phase == PvpPhase.ended) s.leaveResult();
           return;
         }
-        final resigned = await _confirmResign();
-        if (resigned && context.mounted) Navigator.of(context).pop();
+        // Đầu hàng bằng nút Back: không thoát ngay, để người đầu hàng cũng
+        // thấy bảng kết quả; "Về sảnh" trên bảng mới đóng màn hình.
+        await _confirmResign();
       },
       child: Scaffold(
         appBar: AppBar(

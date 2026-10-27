@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nền adaptive icon: màu mực của logo GameHub (phương án A · Bốn ô) -->
+    <color name="ic_launcher_background">#12172A</color>
+</resources>
