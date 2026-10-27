@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace GameHub.Api.model;
 
@@ -112,3 +112,24 @@ public record MatchHistoryDto(
     int MatchId, string GameCode, string GameName, int Difficulty, string Mode, string Kind,
     UserSummaryDto Opponent, string Result, string EndReason,
     int? RatingBefore, int? RatingAfter, int? RatingDelta, DateTime StartedAt, DateTime EndedAt, int DurationSeconds);
+
+// Caro
+public record SaveCaroGameRequest(
+    [Required] string GameMode,
+    [Range(1, 4)] int Difficulty,
+    bool PlayerFirst,
+    [Required] string HistoryData,
+    [Range(0, 1000)] int Undos,
+    [Range(0, 86400)] int ElapsedSeconds,
+    [Range(0, 3)] int HintsRemaining);
+
+public record CaroSavedGameDto(
+    int Id,
+    string GameMode,
+    int Difficulty,
+    bool PlayerFirst,
+    string HistoryData,
+    int Undos,
+    int ElapsedSeconds,
+    int HintsRemaining,
+    DateTime UpdatedAt);

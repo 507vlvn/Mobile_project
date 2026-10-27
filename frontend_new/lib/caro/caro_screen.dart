@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:frontend_new/auth/auth_controller.dart';
+import 'package:frontend_new/core/network/api_client.dart';
 import 'package:frontend_new/caro/models/caro_mode.dart';
 import 'package:frontend_new/caro/models/challenge_context.dart';
 import 'package:frontend_new/caro/models/difficulty.dart';
@@ -29,7 +31,11 @@ class CaroScreen extends StatefulWidget {
     this.initialPlayerFirst,
     this.initialTheme,
     this.resumeSaved = false,
+    this.userId,
   });
+
+  /// ID người dùng hiện tại (nếu có đăng nhập).
+  final int? userId;
 
   /// Khác null = ván thách đấu (người chơi đi trước, không lưu ván).
   final ChallengeContext? challenge;
@@ -58,6 +64,15 @@ class CaroScreen extends StatefulWidget {
 
 class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
   static const _gameCode = 'CARO';
+
+  int? get _effectiveUserId {
+    if (widget.userId != null) return widget.userId;
+    try {
+      return context.read<AuthController>().currentUser?.userId;
+    } catch (_) {
+      return null;
+    }
+  }
   static const _onboardingKey = 'caro_onboarding_done';
   static const _oneTapKey = 'caro_one_tap';
   static const _firstKey = 'caro_player_first';
@@ -81,7 +96,7 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _ownsController = widget.controller == null;
-    _c = widget.controller ?? CaroController(challenge: widget.challenge);
+    _c = widget.controller ?? CaroController(challenge: widget.challenge, userId: widget.userId);
     WidgetsBinding.instance.addObserver(this);
     _c.addListener(_onControllerChanged);
     if (_challenge == null) {
@@ -94,11 +109,24 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _c.userId ??= _effectiveUserId;
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _c.removeListener(_onControllerChanged);
     if (_ownsController) {
-      _c.save();
+      _c.save(customUserId: _effectiveUserId);
+      try {
+        final auth = context.read<AuthController>();
+        if (auth.isAuthenticated) {
+          final api = context.read<ApiClient>();
+          _c.saveGameToServer(api);
+        }
+      } catch (_) {}
       _c.dispose();
     }
     super.dispose();
@@ -111,7 +139,14 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _c.pause();
-      _c.save();
+      _c.save(customUserId: _effectiveUserId);
+      try {
+        final auth = context.read<AuthController>();
+        if (auth.isAuthenticated) {
+          final api = context.read<ApiClient>();
+          _c.saveGameToServer(api);
+        }
+      } catch (_) {}
     }
   }
 
@@ -145,6 +180,26 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
     setState(() {
       if (!_c.canPlayerMove) _preview = null;
     });
+    if (_c.phase == CaroPhase.playing && _c.history.isNotEmpty) {
+      try {
+        final auth = context.read<AuthController>();
+        if (auth.isAuthenticated) {
+          final api = context.read<ApiClient>();
+          _c.saveGameToServer(api);
+        }
+      } catch (_) {}
+    }
+
+    if (_c.phase == CaroPhase.playing && _c.history.isNotEmpty) {
+      try {
+        final auth = context.read<AuthController>();
+        if (auth.isAuthenticated) {
+          final api = context.read<ApiClient>();
+          _c.saveGameToServer(api);
+        }
+      } catch (_) {}
+    }
+
     if (_c.phase == CaroPhase.finished && !_resultHandled) {
       _resultHandled = true;
       _onFinished();
@@ -167,13 +222,30 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
 
     // 1. Nếu yêu cầu tiếp tục ván dở từ màn hình Home
     if (widget.resumeSaved) {
-      if (await CaroController.hasSavedGame()) {
-        if (await _c.restore()) {
+      final uId = _effectiveUserId;
+      _c.userId = uId;
+      if (await CaroController.hasSavedGame(userId: uId)) {
+        if (await _c.restore(customUserId: uId)) {
           _difficulty = _c.difficulty;
           _playerFirst = _c.playerFirst;
           _mode = _c.gameMode;
           return;
         }
+      }
+      if (mounted) {
+        try {
+          final auth = context.read<AuthController>();
+          if (auth.isAuthenticated) {
+            final api = context.read<ApiClient>();
+            final serverSave = await api.getCaroSavedGame();
+            if (serverSave != null && _c.restoreFromSavedGame(serverSave)) {
+              _difficulty = _c.difficulty;
+              _playerFirst = _c.playerFirst;
+              _mode = _c.gameMode;
+              return;
+            }
+          }
+        } catch (_) {}
       }
     }
 
@@ -243,6 +315,14 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
 
   void _startNewGame() {
     if (_challenge != null) return;
+    try {
+      final auth = context.read<AuthController>();
+      if (auth.isAuthenticated) {
+        final api = context.read<ApiClient>();
+        _c.deleteGameFromServer(api);
+      }
+    } catch (_) {}
+    _c.clearSave(customUserId: _effectiveUserId);
     DifficultyMemory.save(_gameCode, _difficulty);
     SharedPreferences.getInstance().then((p) {
       p.setBool(_firstKey, _playerFirst);
@@ -335,6 +415,16 @@ class _CaroScreenState extends State<CaroScreen> with WidgetsBindingObserver {
         isPersonalBest: outcome.isPersonalBest,
       ),
     );
+    if (mounted) {
+      try {
+        final auth = context.read<AuthController>();
+        if (auth.isAuthenticated) {
+          final api = context.read<ApiClient>();
+          _c.deleteGameFromServer(api);
+        }
+      } catch (_) {}
+    }
+
     if (outcome.message != null && !isPvp) {
       messenger
         ..hideCurrentSnackBar()

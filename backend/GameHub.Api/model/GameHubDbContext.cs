@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace GameHub.Api.model;
 
@@ -16,6 +16,7 @@ public class GameHubDbContext(DbContextOptions<GameHubDbContext> options) : DbCo
     public DbSet<SudokuProgress> SudokuProgresses => Set<SudokuProgress>();
     public DbSet<SudokuSavedGame> SudokuSavedGames => Set<SudokuSavedGame>();
     public DbSet<SudokuDifficultyStat> SudokuDifficultyStats => Set<SudokuDifficultyStat>();
+    public DbSet<CaroSavedGame> CaroSavedGames => Set<CaroSavedGame>();
 
     // Trả về false nếu lưu bị trùng khoá hoặc lỗi ràng buộc dữ liệu.
     public async Task<bool> TrySaveAsync(CancellationToken ct = default)
@@ -229,6 +230,22 @@ public class GameHubDbContext(DbContextOptions<GameHubDbContext> options) : DbCo
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(x => new { x.UserId, x.Difficulty }).IsUnique();
+        });
+        b.Entity<CaroSavedGame>(e =>
+        {
+            e.ToTable("CaroSavedGames").HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.GameMode).HasColumnName("game_mode").HasMaxLength(20).IsUnicode(false);
+            e.Property(x => x.Difficulty).HasColumnName("difficulty");
+            e.Property(x => x.PlayerFirst).HasColumnName("player_first");
+            e.Property(x => x.HistoryData).HasColumnName("history_data").IsUnicode(false);
+            e.Property(x => x.Undos).HasColumnName("undos");
+            e.Property(x => x.ElapsedSeconds).HasColumnName("elapsed_seconds");
+            e.Property(x => x.HintsRemaining).HasColumnName("hints_remaining");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.UserId, x.GameMode }).IsUnique();
         });
     }
 }

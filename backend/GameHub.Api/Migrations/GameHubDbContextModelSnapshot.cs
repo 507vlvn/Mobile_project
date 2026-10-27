@@ -137,6 +137,16 @@ namespace GameHub.Api.Migrations
                     b.ToTable("Friendships", (string)null);
                 });
 
+                        modelBuilder.Entity("GameHub.Api.model.CaroSavedGame", b =>
+                {
+                    b.HasOne("GameHub.Api.model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
             modelBuilder.Entity("GameHub.Api.model.Game", b =>
                 {
                     b.Property<int>("GameId")
@@ -547,6 +557,63 @@ namespace GameHub.Api.Migrations
                     b.ToTable("SudokuProgresses", (string)null);
                 });
 
+                        modelBuilder.Entity("GameHub.Api.model.CaroSavedGame", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("int")
+                        .HasColumnName("difficulty");
+
+                    b.Property<int>("ElapsedSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("elapsed_seconds");
+
+                    b.Property<string>("GameMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("game_mode");
+
+                    b.Property<int>("HintsRemaining")
+                        .HasColumnType("int")
+                        .HasColumnName("hints_remaining");
+
+                    b.Property<string>("HistoryData")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("history_data");
+
+                    b.Property<bool>("PlayerFirst")
+                        .HasColumnType("bit")
+                        .HasColumnName("player_first");
+
+                    b.Property<int>("Undos")
+                        .HasColumnType("int")
+                        .HasColumnName("undos");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "GameMode")
+                        .IsUnique();
+
+                    b.ToTable("CaroSavedGames", (string)null);
+                });
             modelBuilder.Entity("GameHub.Api.model.SudokuSavedGame", b =>
                 {
                     b.Property<int>("Id")
@@ -859,6 +926,63 @@ namespace GameHub.Api.Migrations
                     b.Navigation("User");
                 });
 
+                        modelBuilder.Entity("GameHub.Api.model.CaroSavedGame", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("int")
+                        .HasColumnName("difficulty");
+
+                    b.Property<int>("ElapsedSeconds")
+                        .HasColumnType("int")
+                        .HasColumnName("elapsed_seconds");
+
+                    b.Property<string>("GameMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("game_mode");
+
+                    b.Property<int>("HintsRemaining")
+                        .HasColumnType("int")
+                        .HasColumnName("hints_remaining");
+
+                    b.Property<string>("HistoryData")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(max)")
+                        .HasColumnName("history_data");
+
+                    b.Property<bool>("PlayerFirst")
+                        .HasColumnType("bit")
+                        .HasColumnName("player_first");
+
+                    b.Property<int>("Undos")
+                        .HasColumnType("int")
+                        .HasColumnName("undos");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "GameMode")
+                        .IsUnique();
+
+                    b.ToTable("CaroSavedGames", (string)null);
+                });
             modelBuilder.Entity("GameHub.Api.model.SudokuSavedGame", b =>
                 {
                     b.HasOne("GameHub.Api.model.User", "User")
@@ -870,6 +994,16 @@ namespace GameHub.Api.Migrations
                     b.Navigation("User");
                 });
 
+                        modelBuilder.Entity("GameHub.Api.model.CaroSavedGame", b =>
+                {
+                    b.HasOne("GameHub.Api.model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
             modelBuilder.Entity("GameHub.Api.model.Game", b =>
                 {
                     b.Navigation("Levels");

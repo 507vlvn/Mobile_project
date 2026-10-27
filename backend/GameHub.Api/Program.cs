@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Threading.RateLimiting;
 using GameHub.Api.model;
 using GameHub.Api.Repositories;
@@ -33,12 +33,14 @@ builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<IHistoryRepository, HistoryRepository>();
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<ISudokuRepository, SudokuRepository>();
+builder.Services.AddScoped<ICaroRepository, CaroRepository>();
 
 // --- Services ---
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LeaderboardService>();
 builder.Services.AddScoped<ChallengeService>();
 builder.Services.AddScoped<ISudokuService, SudokuService>();
+builder.Services.AddScoped<ICaroService, CaroService>();
 
 // --- Realtime (SignalR, trạng thái trận trong bộ nhớ) ---
 builder.Services.AddSignalR();
