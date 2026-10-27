@@ -152,9 +152,30 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         setState(() {
           _sharedMistakes = e.mistakes;
           if (e.isMistake) {
-            // Chỉ rung chuông báo lỗi nếu lỗi do bạn bè làm (nếu là mình làm thì đã rung lúc bấm)
+            _triggerMistakeFeedback();
+            _tempErrorTimer?.cancel();
+            _tempErrorRow = e.row;
+            _tempErrorCol = e.col;
+            _tempErrorValue = e.value;
+            _tempErrorTimer = Timer(const Duration(milliseconds: 1500), () {
+              if (mounted) {
+                setState(() {
+                  _tempErrorRow = null;
+                  _tempErrorCol = null;
+                  _tempErrorValue = null;
+                });
+              }
+            });
             if (e.byUserId != myId) {
-              _triggerMistakeFeedback();
+              final oppName = widget.session.match?.opponent?.displayName ?? 'Đồng đội';
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('❌ $oppName chọn sai số ${e.value}! (+1 lỗi: $_sharedMistakes/$_maxMistakes)'),
+                  backgroundColor: const Color(0xFFDC2626),
+                  duration: const Duration(milliseconds: 1500),
+                ),
+              );
             }
           } else if (e.row >= 0 && e.row < 9 && e.col >= 0 && e.col < 9) {
             final cell = _board[e.row][e.col];
@@ -163,6 +184,16 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
             cell.notes.clear();
           }
         });
+        if (_sharedMistakes >= _maxMistakes) {
+          _clockTimer?.cancel();
+          _showMatchEndedDialog(MatchEndedEvent(
+            matchId: widget.session.match?.matchId ?? '',
+            winnerId: null,
+            reason: 'MISTAKES_LIMIT',
+            ranked: false,
+          ));
+          return;
+        }
         _checkBoardCompletion();
       }),
 
@@ -222,6 +253,8 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
   }
 
   void _onNumberTap(int number) {
+    if (_endedDialogShown || _sharedMistakes >= _maxMistakes) return;
+
     if (_selectedRow == null || _selectedCol == null) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -232,6 +265,18 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
       );
       return;
     }
+
+    if (_countPlaced(number) >= 9) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Số $number đã được điền đủ 9 ô trên bàn cờ'),
+          duration: const Duration(milliseconds: 1000),
+        ),
+      );
+      return;
+    }
+
     final cell = _board[_selectedRow!][_selectedCol!];
     if (cell.isClue) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -294,7 +339,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         _tempErrorValue = number;
         _sharedMistakes++;
       });
-      _tempErrorTimer = Timer(const Duration(milliseconds: 900), () {
+      _tempErrorTimer = Timer(const Duration(milliseconds: 1500), () {
         if (mounted) {
           setState(() {
             _tempErrorRow = null;
@@ -303,12 +348,29 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
           });
         }
       });
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Số $number không đúng cho ô này! (+1 lỗi: $_sharedMistakes/$_maxMistakes)'),
+          backgroundColor: const Color(0xFFDC2626),
+          duration: const Duration(milliseconds: 1500),
+        ),
+      );
       widget.session.sendSudokuMove(
         row: curRow,
         col: curCol,
         value: number,
         isMistake: true,
       );
+      if (_sharedMistakes >= _maxMistakes) {
+        _clockTimer?.cancel();
+        _showMatchEndedDialog(MatchEndedEvent(
+          matchId: widget.session.match?.matchId ?? '',
+          winnerId: null,
+          reason: 'MISTAKES_LIMIT',
+          ranked: false,
+        ));
+      }
     }
   }
 
@@ -340,7 +402,6 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
 
     final myId = widget.session.match?.you ?? 0;
     final opp = widget.session.match?.opponent;
-    final isWin = event.reason == 'COOP_WIN';
 
     final (icon, title, desc) = switch (event.reason) {
       'COOP_WIN' => (
@@ -459,22 +520,46 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                widget.session.leaveResult();
-                if (mounted) Navigator.of(context).pop();
-              },
-              child: const Text('Về sảnh'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Tái đấu'),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                widget.session.rematch();
-              },
-            ),
+            if (event.reason == 'MISTAKES_LIMIT' || event.reason == 'TIME_LIMIT') ...[
+              FilledButton.icon(
+                icon: const Icon(Icons.exit_to_app_rounded),
+                label: const Text('Thoát trò chơi'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                ),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  widget.session.leaveResult();
+                  if (mounted) Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  widget.session.rematch();
+                },
+                child: const Text('Thử lại'),
+              ),
+            ] else ...[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  widget.session.leaveResult();
+                  if (mounted) Navigator.of(context).pop();
+                },
+                child: const Text('Về sảnh'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tái đấu'),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  widget.session.rematch();
+                },
+              ),
+            ],
           ],
         );
       },
@@ -525,6 +610,7 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     final opp = m?.opponent;
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Đếm số ô mỗi người đã điền
     int myCount = 0;
@@ -632,11 +718,21 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 2.0),
                               child: Icon(
-                                i < _sharedMistakes ? Icons.close_rounded : Icons.favorite_rounded,
+                                i < _sharedMistakes ? Icons.heart_broken_rounded : Icons.favorite_rounded,
                                 size: 18,
-                                color: i < _sharedMistakes ? scheme.error : const Color(0xFFEF4444),
+                                color: i < _sharedMistakes
+                                    ? (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
+                                    : const Color(0xFFEF4444),
                               ),
                             ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$_sharedMistakes/$_maxMistakes',
+                            style: text.labelSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: _sharedMistakes > 0 ? const Color(0xFFDC2626) : scheme.onSurfaceVariant,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -877,10 +973,18 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
         : 0;
     final isSameNumber = selectedVal > 0 && cell.currentValue == selectedVal;
 
+    // Kiểm tra ô bị xung đột số với số bị nhập sai (để người chơi thấy rõ tại sao số đó sai)
+    final isConflictCell = !isTempError &&
+        _tempErrorValue != null &&
+        (isInSameRowOrCol || isInSameBox) &&
+        cell.currentValue == _tempErrorValue;
+
     // Màu nền ô
     Color bgColor;
     if (isTempError) {
-      bgColor = isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.75) : const Color(0xFFFFE4E6);
+      bgColor = isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2);
+    } else if (isConflictCell) {
+      bgColor = isDark ? const Color(0xFF78350F).withValues(alpha: 0.7) : const Color(0xFFFEF3C7);
     } else if (isSelected) {
       bgColor = isDark ? const Color(0xFF1E3A8A) : const Color(0xFFDBEAFE);
     } else if (isSameNumber) {
@@ -908,6 +1012,8 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
     Color numberColor;
     if (isTempError) {
       numberColor = const Color(0xFFDC2626);
+    } else if (isConflictCell) {
+      numberColor = const Color(0xFFD97706);
     } else if (cell.isClue) {
       numberColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
     } else if (filledByMe) {
@@ -933,10 +1039,10 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
             if (isTempError && _tempErrorValue != null)
               Text(
                 '$_tempErrorValue',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: numberColor,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFFDC2626),
                 ),
               )
             else if (cell.currentValue > 0)
@@ -975,11 +1081,44 @@ class _SudokuCoopScreenState extends State<SudokuCoopScreen> with TickerProvider
               ),
 
             // Viền con trỏ của chính mình
-            if (isSelected)
+            if (isSelected && !isTempError)
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: const Color(0xFF2563EB), width: 2.2),
+                  ),
+                ),
+              ),
+
+            // Lớp phủ viền đỏ + icon X nếu ô này vừa bị bấm sai
+            if (isTempError)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFDC2626), width: 2.8),
+                    color: const Color(0xFFDC2626).withValues(alpha: 0.18),
+                  ),
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Container(
+                      margin: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(1.5),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDC2626),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 10, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Lớp phủ viền cảnh báo nếu ô bị trùng số với số sai
+            if (isConflictCell)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFF59E0B), width: 1.8),
                   ),
                 ),
               ),

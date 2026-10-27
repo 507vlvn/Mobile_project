@@ -105,8 +105,8 @@ class SudokuBoard extends StatelessWidget {
     Color cellBgColor = Colors.transparent;
     if (cell.isError) {
       cellBgColor = isDark
-          ? const Color(0xFF7F1D1D).withValues(alpha: 0.65)
-          : const Color(0xFFFFE4E6);
+          ? const Color(0xFF7F1D1D)
+          : const Color(0xFFFEE2E2);
     } else if (isSelected) {
       cellBgColor = isDark
           ? const Color(0xFF2563EB).withValues(alpha: 0.5)
@@ -128,21 +128,39 @@ class SudokuBoard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: cellBgColor,
-          border: Border(
-            right: BorderSide(
-              color: (col % 3 == 2) ? Colors.transparent : thinBorderColor,
-              width: 0.8,
-            ),
-            bottom: BorderSide(
-              color: (row % 3 == 2) ? Colors.transparent : thinBorderColor,
-              width: 0.8,
-            ),
-          ),
+          border: cell.isError
+              ? Border.all(color: const Color(0xFFDC2626), width: 2.5)
+              : Border(
+                  right: BorderSide(
+                    color: (col % 3 == 2) ? Colors.transparent : thinBorderColor,
+                    width: 0.8,
+                  ),
+                  bottom: BorderSide(
+                    color: (row % 3 == 2) ? Colors.transparent : thinBorderColor,
+                    width: 0.8,
+                  ),
+                ),
         ),
-        child: Center(
-          child: cell.value != 0
-              ? _buildCellValue(cell, cellSize, isDark)
-              : _buildCellNotes(cell, isDark),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            cell.value != 0
+                ? _buildCellValue(cell, cellSize, isDark)
+                : _buildCellNotes(cell, isDark),
+            if (cell.isError)
+              Positioned(
+                top: 1,
+                right: 1,
+                child: Container(
+                  padding: const EdgeInsets.all(1),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFDC2626),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close_rounded, size: 8, color: Colors.white),
+                ),
+              ),
+          ],
         ),
       ),
     );
