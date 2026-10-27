@@ -5,7 +5,7 @@
     <!-- Server API đang chạy http:// (chưa có HTTPS) nên cần cho phép cleartext -->
     <application
         android:usesCleartextTraffic="true"
-        android:label="frontend_new"
+        android:label="GameHub"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
