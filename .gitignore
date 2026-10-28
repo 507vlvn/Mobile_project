@@ -42,3 +42,9 @@ backend/**/obj/
 .DS_Store
 Thumbs.db
 *.log
+
+# Cấu hình bí mật backend (chuỗi kết nối, khoá JWT) — chỉ để ở máy, không commit
+backend/**/appsettings.Development.json
+backend/**/appsettings.Production.json
+# .env của app chỉ chứa địa chỉ server công khai → vẫn commit
+!frontend_new/.env
